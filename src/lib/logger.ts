@@ -6,61 +6,72 @@ const isDevelopment = config.env === "development";
 const isTest = config.env === "test";
 const logDir = join(process.cwd(), config.logs.dir);
 
+function createFileTargets() {
+  return [
+    // Main application logs with rotation (NDJSON)
+    {
+      target: "pino-roll",
+      level: "info",
+      options: {
+        file: join(logDir, "app.ndjson"),
+        frequency: "daily",
+        size: "100m",
+        dateFormat: "yyyy-MM-dd",
+        mkdir: true,
+        symlink: true,
+        limit: {
+          count: 30, // Keep 30 days of logs
+          removeOtherLogFiles: true,
+        },
+        sync: false, // Async writes for performance
+      },
+    },
+    // Separate error-only logs (NDJSON)
+    {
+      target: "pino-roll",
+      level: "error",
+      options: {
+        file: join(logDir, "error.ndjson"),
+        frequency: "daily",
+        size: "50m",
+        dateFormat: "yyyy-MM-dd",
+        mkdir: true,
+        symlink: true,
+        limit: {
+          count: 30, // Keep 30 days of logs
+          removeOtherLogFiles: true,
+        },
+        sync: false,
+      },
+    },
+  ];
+}
+
 // Create transport configuration
 function createTransport() {
-  // Development: pretty printing to console
+  const fileTargets = createFileTargets();
+
+  // Development: pretty printing to console + file logs
   if (isDevelopment) {
     return {
-      target: "pino-pretty",
-      options: {
-        colorize: true,
-        translateTime: "SYS:standard",
-        ignore: "pid,hostname",
-        singleLine: false,
-      },
+      targets: [
+        {
+          target: "pino-pretty",
+          options: {
+            colorize: true,
+            translateTime: "SYS:standard",
+            ignore: "pid,hostname",
+            singleLine: false,
+          },
+        },
+        ...fileTargets,
+      ],
     };
   }
 
   // Production: rotating file logs with multi-stream
   return {
-    targets: [
-      // Main application logs with rotation
-      {
-        target: "pino-roll",
-        level: "info",
-        options: {
-          file: join(logDir, "app.log"),
-          frequency: "daily",
-          size: "100m",
-          dateFormat: "yyyy-MM-dd",
-          mkdir: true,
-          symlink: true,
-          limit: {
-            count: 30, // Keep 30 days of logs
-            removeOtherLogFiles: true,
-          },
-          sync: false, // Async writes for performance
-        },
-      },
-      // Separate error-only logs
-      {
-        target: "pino-roll",
-        level: "error",
-        options: {
-          file: join(logDir, "error.log"),
-          frequency: "daily",
-          size: "50m",
-          dateFormat: "yyyy-MM-dd",
-          mkdir: true,
-          symlink: true,
-          limit: {
-            count: 30, // Keep 30 days of logs
-            removeOtherLogFiles: true,
-          },
-          sync: false,
-        },
-      },
-    ],
+    targets: fileTargets,
   };
 }
 

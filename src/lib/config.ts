@@ -1,3 +1,6 @@
+import { homedir } from "node:os";
+import { join } from "node:path";
+
 interface Config {
   env: string;
   db: {
@@ -54,10 +57,10 @@ function initConfig(): Config {
   }
   const serverPort = Number.parseInt(serverPortStr, 10);
 
-  const logDir = process.env.LOG_DIR;
-  if (!logDir || logDir.trim() === "") {
-    throw new ConfigurationError("LOG_DIR is required but not set");
-  }
+  const logDir =
+    process.env.LOG_DIR && process.env.LOG_DIR.trim() !== ""
+      ? process.env.LOG_DIR
+      : join(homedir(), "PurchaseData", "logs");
 
   const logLevel = process.env.LOG_LEVEL;
   if (!logLevel || logLevel.trim() === "") {

@@ -1,7 +1,7 @@
 import { Elysia } from "elysia";
 import { randomUUID } from "node:crypto";
 import { config } from "./lib/config";
-import { logger, createRequestLogger } from "./lib/logger";
+import { createRequestLogger, logger } from "./lib/logger";
 import { router } from "./router";
 
 const app = new Elysia()
@@ -21,8 +21,12 @@ const app = new Elysia()
     // @ts-ignore
     const reqLogger = store.logger;
 
+    // @ts-ignore
+    const requestId = store.requestId;
+
     reqLogger.info(
       {
+        requestId,
         method: request.method,
         path,
         query: query && Object.keys(query).length > 0 ? query : undefined,
@@ -40,14 +44,18 @@ const app = new Elysia()
     // @ts-ignore
     const reqLogger = store.logger;
     // @ts-ignore
-    const duration = Date.now() - (store.startTime || Date.now());
+    const durationMs = Date.now() - (store.startTime || Date.now());
+
+    // @ts-ignore
+    const requestId = store.requestId;
 
     reqLogger.info(
       {
+        requestId,
         method: request.method,
         path,
         status: set.status || 200,
-        duration,
+        durationMs,
       },
       "Request completed",
     );
@@ -57,18 +65,22 @@ const app = new Elysia()
       // @ts-ignore
       const reqLogger = store.logger || logger;
       // @ts-ignore
-      const duration = Date.now() - (store.startTime || Date.now());
+      const durationMs = Date.now() - (store.startTime || Date.now());
       const httpStatusCode = getHttpStatusCode(code);
+
+      // @ts-ignore
+      const requestId = store.requestId;
 
       reqLogger.error(
         {
+          requestId,
           err: error,
           method: request.method,
           path,
           query: query && Object.keys(query).length > 0 ? query : undefined,
           params: params && Object.keys(params).length > 0 ? params : undefined,
           body: body || undefined,
-          duration,
+          durationMs,
           code,
           httpStatus: httpStatusCode,
         },
