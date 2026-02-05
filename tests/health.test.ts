@@ -14,15 +14,11 @@ let originalEnv: NodeJS.ProcessEnv;
 let baseEnv: NodeJS.ProcessEnv;
 
 type DbBehavior = {
-  connect: () => Promise<void>;
-  query: () => Promise<void>;
-  end: () => Promise<void>;
+  execute: () => Promise<void>;
 };
 
 let dbBehavior: DbBehavior = {
-  connect: async () => {},
-  query: async () => {},
-  end: async () => {},
+  execute: async () => {},
 };
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -39,17 +35,9 @@ beforeAll(async () => {
 
   baseEnv = { ...process.env };
 
-  mock.module("pg", () => ({
-    Client: class {
-      connect() {
-        return dbBehavior.connect();
-      }
-      query() {
-        return dbBehavior.query();
-      }
-      end() {
-        return dbBehavior.end();
-      }
+  mock.module("../src/db", () => ({
+    db: {
+      execute: () => dbBehavior.execute(),
     },
   }));
 
@@ -79,9 +67,7 @@ describe("Health Handlers", () => {
     beforeEach(() => {
       process.env = { ...baseEnv };
       dbBehavior = {
-        connect: async () => {},
-        query: async () => {},
-        end: async () => {},
+        execute: async () => {},
       };
       globalThis.fetch = mock(async () => ({
         ok: true,
@@ -108,7 +94,7 @@ describe("Health Handlers", () => {
     });
 
     test("should complete within reasonable timeout", async () => {
-      dbBehavior.connect = async () => {
+      dbBehavior.execute = async () => {
         await delay(50);
       };
       globalThis.fetch = mock(async () => {
@@ -124,7 +110,7 @@ describe("Health Handlers", () => {
     }, 5000);
 
     test("should handle both checks failing gracefully", async () => {
-      dbBehavior.connect = async () => {
+      dbBehavior.execute = async () => {
         throw new Error("db down");
       };
       globalThis.fetch = mock(async () => {
@@ -138,7 +124,7 @@ describe("Health Handlers", () => {
     });
 
     test("should run db and llm checks in parallel", async () => {
-      dbBehavior.connect = async () => {
+      dbBehavior.execute = async () => {
         await delay(120);
       };
       globalThis.fetch = mock(async () => {

@@ -1,3 +1,6 @@
+import { sql } from "drizzle-orm";
+
+import { db } from "../db";
 import { config } from "../lib/config";
 import { logger } from "../lib/logger";
 
@@ -5,13 +8,11 @@ const DEFAULT_TIMEOUT_MS = 1500;
 
 async function checkDb(): Promise<"ok" | "down"> {
   try {
-    const { Client } = await import("pg");
-    const client = new Client({ connectionString: config.db.url });
-    const timeoutId = setTimeout(() => client.end(), DEFAULT_TIMEOUT_MS);
+    const timeoutId = setTimeout(() => {
+      logger.warn({ service: "db" }, "DB check timed out");
+    }, DEFAULT_TIMEOUT_MS);
 
-    await client.connect();
-    await client.query("SELECT 1");
-    await client.end();
+    await db.execute(sql`SELECT 1`);
 
     clearTimeout(timeoutId);
     logger.info({ service: "db" }, "DB is reachable");
