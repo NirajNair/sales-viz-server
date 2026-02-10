@@ -6,20 +6,23 @@ import { logger, loggerWithContext } from "./lib/logger";
 import { router } from "./router";
 
 const app = new Elysia()
-  // Wrap all request handlers in AsyncLocalStorage context
+  // Store requestId in Elysia store
   .onRequest(({ request, store }) => {
     const requestId = request.headers.get("x-request-id") || randomUUID();
-
-    // Store in async context - this makes requestId available anywhere in the call chain
-    requestContext.run(requestId, () => {
-      // Also store in Elysia store for other middleware that needs it
-      // @ts-ignore - store is mutable
-      store.requestId = requestId;
-      // @ts-ignore
-      store.startTime = Date.now();
-    });
+    // @ts-ignore - store is mutable
+    store.requestId = requestId;
+    // @ts-ignore
+    store.startTime = Date.now();
   })
-  .onBeforeHandle(({ request, path, query, params }) => {
+  // Use derive to inject requestId into context and wrap in AsyncLocalStorage
+  .derive(({ store }) => {
+    const requestId = (store as { requestId: string }).requestId;
+    return { requestId };
+  })
+  .onBeforeHandle(({ request, path, query, params, requestId }) => {
+    // Set up AsyncLocalStorage context for this request
+    requestContext.enterWith(requestId);
+    
     const contentType = request.headers.get("content-type") || undefined;
     const contentLength = request.headers.get("content-length") || undefined;
 
