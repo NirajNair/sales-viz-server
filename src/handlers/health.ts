@@ -9,7 +9,7 @@ const DEFAULT_TIMEOUT_MS = 1500;
 async function checkDb(): Promise<"ok" | "down"> {
   try {
     const timeoutId = setTimeout(() => {
-      logger.warn({ service: "db" }, "DB check timed out");
+      logger.error({ service: "db" }, "DB check timed out");
     }, DEFAULT_TIMEOUT_MS);
 
     await db.execute(sql`SELECT 1`);
@@ -18,7 +18,7 @@ async function checkDb(): Promise<"ok" | "down"> {
     logger.info({ service: "db" }, "DB is reachable");
     return "ok";
   } catch (error) {
-    logger.warn({ service: "db", error }, "DB is unreachable");
+    logger.error({ service: "db", error }, "DB is unreachable");
     return "down";
   }
 }
@@ -34,7 +34,7 @@ async function checkLlm(): Promise<"ok" | "down"> {
     return "ok";
   } catch (error) {
     clearTimeout(timer);
-    logger.warn({ service: "llm", error }, "LLM endpoint unreachable");
+    logger.error({ service: "llm", error }, "LLM endpoint unreachable");
     return "down";
   }
 }

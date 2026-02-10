@@ -29,7 +29,7 @@ beforeAll(async () => {
   process.env.NODE_ENV = "test";
   process.env.DB_HOST = "127.0.0.1";
   process.env.DB_PORT = "5432";
-  process.env.LLM_URL = "http://localhost:99999/unreachable";
+  process.env.LLM_URL = "http://localhost:99999";
   process.env.PORT = "3000";
   process.env.LOG_DIR = "/tmp";
 

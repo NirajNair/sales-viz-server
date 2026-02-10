@@ -1,37 +1,36 @@
 import { Elysia } from "elysia";
 import { randomUUID } from "node:crypto";
+import { requestContext } from "./lib/async-context";
 import { config } from "./lib/config";
-import { createRequestLogger, logger } from "./lib/logger";
+import { logger, loggerWithContext } from "./lib/logger";
 import { router } from "./router";
 
 const app = new Elysia()
+  // Wrap all request handlers in AsyncLocalStorage context
   .onRequest(({ request, store }) => {
     const requestId = request.headers.get("x-request-id") || randomUUID();
 
-    // @ts-ignore - store is mutable
-    store.requestId = requestId;
-    // @ts-ignore
-    store.startTime = Date.now();
-
-    // Create request-scoped logger
-    // @ts-ignore
-    store.logger = createRequestLogger(requestId);
+    // Store in async context - this makes requestId available anywhere in the call chain
+    requestContext.run(requestId, () => {
+      // Also store in Elysia store for other middleware that needs it
+      // @ts-ignore - store is mutable
+      store.requestId = requestId;
+      // @ts-ignore
+      store.startTime = Date.now();
+    });
   })
-  .onBeforeHandle(({ request, store, path, query, params, body }) => {
-    // @ts-ignore
-    const reqLogger = store.logger;
+  .onBeforeHandle(({ request, path, query, params }) => {
+    const contentType = request.headers.get("content-type") || undefined;
+    const contentLength = request.headers.get("content-length") || undefined;
 
-    // @ts-ignore
-    const requestId = store.requestId;
-
-    reqLogger.info(
+    loggerWithContext.info(
       {
-        requestId,
         method: request.method,
         path,
         query: query && Object.keys(query).length > 0 ? query : undefined,
         params: params && Object.keys(params).length > 0 ? params : undefined,
-        body: body || undefined,
+        contentType,
+        contentLength,
         userAgent: request.headers.get("user-agent"),
         ip:
           request.headers.get("x-forwarded-for") ||
@@ -41,17 +40,11 @@ const app = new Elysia()
     );
   })
   .onAfterResponse(({ request, store, path, set }) => {
-    // @ts-ignore
-    const reqLogger = store.logger;
-    // @ts-ignore
-    const durationMs = Date.now() - (store.startTime || Date.now());
+    const startTime = (store as { startTime: number }).startTime;
+    const durationMs = Date.now() - (startTime || Date.now());
 
-    // @ts-ignore
-    const requestId = store.requestId;
-
-    reqLogger.info(
+    loggerWithContext.info(
       {
-        requestId,
         method: request.method,
         path,
         status: set.status || 200,
@@ -60,40 +53,35 @@ const app = new Elysia()
       "Request completed",
     );
   })
-  .onError(
-    ({ error, code, set, request, path, query, params, body, store }) => {
-      // @ts-ignore
-      const reqLogger = store.logger || logger;
-      // @ts-ignore
-      const durationMs = Date.now() - (store.startTime || Date.now());
-      const httpStatusCode = getHttpStatusCode(code);
+  .onError(({ error, code, set, request, path, query, params, store }) => {
+    const startTime = (store as { startTime: number }).startTime;
+    const durationMs = Date.now() - (startTime || Date.now());
 
-      // @ts-ignore
-      const requestId = store.requestId;
+    // Check if it's an AppError with a statusCode property
+    const httpStatusCode =
+      error && typeof error === "object" && "statusCode" in error
+        ? (error as { statusCode: number }).statusCode
+        : getHttpStatusCode(code);
 
-      reqLogger.error(
-        {
-          requestId,
-          err: error,
-          method: request.method,
-          path,
-          query: query && Object.keys(query).length > 0 ? query : undefined,
-          params: params && Object.keys(params).length > 0 ? params : undefined,
-          body: body || undefined,
-          durationMs,
-          code,
-          httpStatus: httpStatusCode,
-        },
-        "Request failed",
-      );
-
-      set.status = httpStatusCode;
-      return {
-        error: error instanceof Error ? error.message : "Unknown error",
-        statusCode: httpStatusCode,
-      };
-    },
-  )
+    loggerWithContext.error(
+      {
+        err: error,
+        method: request.method,
+        path,
+        query: query && Object.keys(query).length > 0 ? query : undefined,
+        params: params && Object.keys(params).length > 0 ? params : undefined,
+        durationMs,
+        code,
+        httpStatus: httpStatusCode,
+      },
+      "Request failed",
+    );
+    set.status = httpStatusCode;
+    return {
+      error: error instanceof Error ? error.message : "Unknown error",
+      statusCode: httpStatusCode,
+    };
+  })
   .use(router)
   .listen({ port: config.server.port }, ({ hostname, port }) => {
     logger.info(

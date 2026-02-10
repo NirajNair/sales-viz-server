@@ -1,83 +1,43 @@
+import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import pino from "pino";
+import { Environment } from "../enums/environment.enum";
+import { getRequestId } from "./async-context";
 import { config } from "./config";
 
-const isDevelopment = config.env === "development";
-const isTest = config.env === "test";
+const isDevelopment = config.env === Environment.Development;
+const isTest = config.env === Environment.Test;
 const logDir = join(process.cwd(), config.logs.dir);
 
-function createFileTargets() {
-  return [
-    // Main application logs with rotation (NDJSON)
-    {
-      target: "pino-roll",
-      level: "info",
-      options: {
-        file: join(logDir, "app.ndjson"),
-        frequency: "daily",
-        size: "100m",
-        dateFormat: "yyyy-MM-dd",
-        mkdir: true,
-        symlink: true,
-        limit: {
-          count: 30, // Keep 30 days of logs
-          removeOtherLogFiles: true,
-        },
-        sync: false, // Async writes for performance
-      },
-    },
-    // Separate error-only logs (NDJSON)
-    {
-      target: "pino-roll",
-      level: "error",
-      options: {
-        file: join(logDir, "error.ndjson"),
-        frequency: "daily",
-        size: "50m",
-        dateFormat: "yyyy-MM-dd",
-        mkdir: true,
-        symlink: true,
-        limit: {
-          count: 30, // Keep 30 days of logs
-          removeOtherLogFiles: true,
-        },
-        sync: false,
-      },
-    },
-  ];
+// Ensure log directory exists
+if (!isTest && !existsSync(logDir)) {
+  mkdirSync(logDir, { recursive: true });
 }
 
-// Create transport configuration
-function createTransport() {
-  const fileTargets = createFileTargets();
+let destination: pino.DestinationStream;
 
-  // Development: pretty printing to console + file logs
-  if (isDevelopment) {
-    return {
-      targets: [
-        {
-          target: "pino-pretty",
-          options: {
-            colorize: true,
-            translateTime: "SYS:standard",
-            ignore: "pid,hostname",
-            singleLine: false,
-          },
-        },
-        ...fileTargets,
-      ],
-    };
-  }
-
-  // Production: rotating file logs with multi-stream
-  return {
-    targets: fileTargets,
-  };
+if (isTest) {
+  // Test: simple stdout
+  destination = pino.destination({ fd: 1, sync: true });
+} else if (isDevelopment) {
+  // Development: pretty console output only (no file logging to avoid pino-roll issues)
+  destination = pino.transport({
+    target: "pino-pretty",
+    options: {
+      colorize: true,
+      translateTime: "SYS:standard",
+      ignore: "pid,hostname",
+      singleLine: false,
+    },
+  });
+} else {
+  // Production: simple file output without rotation (use external log rotation like logrotate)
+  destination = pino.destination({
+    dest: join(logDir, "app.log"),
+    sync: false,
+    mkdir: true,
+  });
 }
-
-const destination = isTest
-  ? pino.destination({ fd: 1, sync: true })
-  : pino.transport(createTransport() as any);
 
 // Create base logger
 export const logger = pino(
@@ -136,4 +96,47 @@ process.on("unhandledRejection", (reason, promise) => {
   logger.fatal({ reason, promise }, "Unhandled promise rejection");
   logger.flush();
   process.exit(1);
+});
+
+/**
+ * Smart global logger that automatically attaches request context.
+ * Use this logger anywhere in your code - if it's called within a request context,
+ * the requestId will be automatically added to all log entries.
+ * If called outside a request context, it behaves like the base logger.
+ */
+const logMethods = [
+  "info",
+  "error",
+  "warn",
+  "debug",
+  "trace",
+  "fatal",
+] as const;
+type LogMethod = (typeof logMethods)[number];
+
+function isLogMethod(prop: PropertyKey): prop is LogMethod {
+  return typeof prop === "string" && logMethods.includes(prop as LogMethod);
+}
+
+export const loggerWithContext = new Proxy(logger, {
+  get(target, prop) {
+    const value = target[prop as keyof typeof target];
+
+    // Only proxy log methods (info, error, warn, debug, trace, fatal)
+    if (isLogMethod(prop) && typeof value === "function") {
+      return (...args: unknown[]) => {
+        const requestId = getRequestId();
+        const logFn = target[prop] as pino.LogFn;
+        if (requestId) {
+          // Create a child logger with request context for this specific call
+          return logFn.apply(target.child({ requestId }), args as [never]);
+        }
+        // No request context, use base logger
+        return logFn.apply(target, args as [never]);
+      };
+    }
+
+    // Return other properties as-is
+    return value;
+  },
 });

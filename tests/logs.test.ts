@@ -39,12 +39,15 @@ beforeAll(async () => {
     readFile: (...args: Parameters<typeof readFileImpl>) => readFileImpl(...args),
   }));
 
+  const mockLogger = {
+    info: (...args: unknown[]) => infoImpl(...args),
+    warn: (...args: unknown[]) => warnImpl(...args),
+    error: (...args: unknown[]) => errorImpl(...args),
+  };
+  
   mock.module("../src/lib/logger", () => ({
-    logger: {
-      info: (...args: unknown[]) => infoImpl(...args),
-      warn: (...args: unknown[]) => warnImpl(...args),
-      error: (...args: unknown[]) => errorImpl(...args),
-    },
+    logger: mockLogger,
+    loggerWithContext: mockLogger,
   }));
 
   ({ handleLogsExport } = await import("../src/handlers/logs"));
@@ -92,16 +95,11 @@ describe("handleLogsExport", () => {
     expect(logsText).toContain("not-json-line");
   });
 
-  test("returns logs.txt with no files message when log dir fails", async () => {
+  test("throws error when log dir fails", async () => {
     readdirImpl = mock(async () => {
       throw new Error("no access");
     });
 
-    const response = await handleLogsExport();
-    const zipBuffer = new Uint8Array(await response.arrayBuffer());
-    const zipEntries = unzipSync(zipBuffer);
-
-    const logsText = decodeZipEntry(zipEntries["logs.txt"]);
-    expect(logsText).toContain("No log files found.");
+    await expect(handleLogsExport()).rejects.toThrow("no access");
   });
 });
