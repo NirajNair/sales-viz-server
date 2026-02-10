@@ -1,59 +1,43 @@
 import type { Context } from "elysia";
-import { z } from "zod";
-import { entities, hsnCodes, purchaseRecords } from "../db/schema";
-import { parseExcel } from "../lib/excel";
-import {
-  getBatchMappingSuggestions,
-  type LlmBatchSuggestion,
-} from "../lib/llm";
+import type { UploadResponseDto } from "../dto/upload.dto";
+import { buildUploadResponse, validateUpload } from "../dto/upload.dto";
 import { ValidationError } from "../lib/errors";
+import { parseExcel } from "../lib/excel";
+import { getBatchMappingSuggestions } from "../lib/llm";
 import { loggerWithContext } from "../lib/logger";
 
-const UploadSchema = z.object({
-  file: z
-    .instanceof(File)
-    .refine((file) => file.size > 0, "File is empty")
-    .refine((file) => {
-      const name = file.name?.toLowerCase() ?? "";
-      return (
-        name.endsWith(".xlsx") ||
-        name.endsWith(".xls") ||
-        file.type ===
-          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
-        file.type === "application/vnd.ms-excel"
-      );
-    }, "Only .xlsx or .xls files are supported"),
-});
-
-const columnsSymbol = Symbol.for("drizzle:Columns");
-const nameSymbol = Symbol.for("drizzle:Name");
-
-function getTableColumnNames(table: unknown) {
-  const columns = (table as Record<symbol, unknown>)[columnsSymbol];
-  if (!columns || typeof columns !== "object") {
-    return [];
-  }
-
-  return Object.values(columns as Record<string, unknown>)
-    .map((column) => (column as { name?: unknown }).name)
-    .filter((name): name is string => typeof name === "string");
-}
-
-function getQualifiedColumnNames(table: unknown) {
-  const tableName = (table as Record<symbol, unknown>)[nameSymbol];
-  const prefix = typeof tableName === "string" ? `${tableName}.` : "";
-  return getTableColumnNames(table).map((name) => `${prefix}${name}`);
-}
-
-function getDbSchemaColumns() {
+function getDbSchemaColumns(): string[] {
   return [
-    ...getQualifiedColumnNames(purchaseRecords),
-    ...getQualifiedColumnNames(entities),
-    ...getQualifiedColumnNames(hsnCodes),
+    // purchase_records - data columns only (no IDs, no timestamps)
+    "purchase_records.invoice_no",
+    "purchase_records.invoice_date",
+    "purchase_records.state",
+    "purchase_records.ewb_no",
+    "purchase_records.ewb_date",
+    "purchase_records.assess_val",
+    "purchase_records.tax_val",
+
+    // seller entity columns
+    "seller_entity.name",
+    "seller_entity.gstin",
+    "seller_entity.place",
+    "seller_entity.pin",
+
+    // buyer entity columns
+    "buyer_entity.name",
+    "buyer_entity.gstin",
+    "buyer_entity.place",
+    "buyer_entity.pin",
+
+    // hsn codes
+    "hsn_codes.code",
+    "hsn_codes.chemical_name",
   ];
 }
 
-export async function handleUpload({ request, set }: Context) {
+export async function handleUpload({
+  request,
+}: Context): Promise<UploadResponseDto> {
   let formData: FormData;
   try {
     formData = await request.formData();
@@ -62,25 +46,20 @@ export async function handleUpload({ request, set }: Context) {
     throw ValidationError(
       error instanceof Error
         ? error.message
-        : "Unable to parse upload form data"
+        : "Unable to parse upload form data",
     );
   }
 
   const file = formData.get("file");
-  const validation = UploadSchema.safeParse({ file });
-  if (!validation.success) {
-    throw ValidationError(
-      validation.error.issues[0]?.message ?? "Invalid upload file"
-    );
-  }
+  const validatedFile = validateUpload(file);
 
   let columns;
   try {
-    const parsed = await parseExcel(validation.data.file);
+    const parsed = await parseExcel(validatedFile);
     columns = parsed.columns;
   } catch (error) {
     throw ValidationError(
-      error instanceof Error ? error.message : "Failed to parse Excel file"
+      error instanceof Error ? error.message : "Failed to parse Excel file",
     );
   }
 
@@ -94,18 +73,5 @@ export async function handleUpload({ request, set }: Context) {
     dbColumns,
   );
 
-  const llmSuggestions = batchResult.columns.map((col) => ({
-    header: col.header,
-    suggestion: {
-      should_split: col.should_split,
-      delimiter: col.delimiter,
-      map_to: col.map_to,
-      parts: col.parts,
-    },
-  }));
-
-  return {
-    columns,
-    llmSuggestions,
-  };
+  return buildUploadResponse(columns, batchResult);
 }

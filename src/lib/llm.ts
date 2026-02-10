@@ -48,7 +48,7 @@ export type ColumnSample = {
   sampleValue: string;
 };
 
-const DEFAULT_TIMEOUT_MS = 30000;
+const DEFAULT_TIMEOUT_MS = 60000;
 
 export const openaiClient = {
   instance: null as OpenAI | null,
@@ -89,31 +89,53 @@ const SINGLE_SYSTEM_PROMPT = `You are an expert data mapper. Your task is to ana
   5. Return ONLY valid JSON, no extra text, no explanations`;
 
 const BATCH_SYSTEM_PROMPT = `You are an expert data mapper. Your task is to analyze Excel columns and decide how to map them to database columns.
-  
-  CRITICAL: Respond immediately with JSON only. DO NOT use <think> tags or show your reasoning process.
-  
-  Your response must be valid JSON in this format:
-  {
-    "columns": [
-      {
-        "header": "column_header_name",
-        "should_split": boolean,
-        "delimiter": string or null,
-        "map_to": string or null,
-        "parts": [
-          { "index": 0, "name": "Part Name", "map_to": "db_column_name" }
-        ]
-      }
-    ]
-  }
 
-  Rules:
-  1. If the column header or sample value contains a clear delimiter (/, -, |, :), split it
-  2. Map each part to the most similar database column
-  3. If no suitable database column exists, set map_to to null
-  4. If column should not be split, map directly or set map_to to null
-  5. Return ONLY valid JSON, no extra text, no explanations
-  6. The "header" field in each column object must match exactly the header from the input`;
+CRITICAL: Respond immediately with JSON only. DO NOT use <think> tags or show your reasoning process.
+
+Your response must be valid JSON in this format:
+{
+  "columns": [
+    {
+      "header": "column_header_name",
+      "should_split": boolean,
+      "delimiter": string or null,
+      "map_to": string or null,
+      "parts": [
+        { "index": 0, "name": "Part Name", "map_to": "db_column_name" }
+      ]
+    }
+  ]
+}
+
+Available Database Columns:
+- purchase_records.invoice_no
+- purchase_records.invoice_date
+- purchase_records.state
+- purchase_records.ewb_no
+- purchase_records.ewb_date
+- purchase_records.assess_val
+- purchase_records.tax_val
+- seller_entity.name (seller organization name)
+- seller_entity.gstin (seller GST identification number)
+- seller_entity.place (seller location/city)
+- seller_entity.pin (seller PIN code)
+- buyer_entity.name (buyer organization name)
+- buyer_entity.gstin (buyer GST identification number)
+- buyer_entity.place (buyer location/city)
+- buyer_entity.pin (buyer PIN code)
+- hsn_codes.code (HSN/SAC code)
+- hsn_codes.chemical_name (product/chemical name)
+
+Guidelines:
+1. If the column header or sample value contains a clear delimiter (/, -, |, :), split it
+2. Map seller-related columns to seller_entity.* fields
+3. Map buyer-related columns to buyer_entity.* fields
+4. Map product/item columns to hsn_codes.* fields
+5. Map invoice/transaction columns to purchase_records.* fields
+6. If no suitable database column exists, set map_to to null
+7. If column should not be split, map directly or set map_to to null
+8. Return ONLY valid JSON, no extra text, no explanations
+9. The "header" field in each column object must match exactly the header from the input`;
 
 function buildUserPrompt(sample: ColumnSample, dbColumns: string[]) {
   const dbList = dbColumns.join(", ");
