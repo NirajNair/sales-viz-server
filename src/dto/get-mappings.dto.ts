@@ -64,15 +64,15 @@ export interface GetMappingsResponseDto {
   llmSuggestions: Array<{
     header: string;
     suggestion: {
-      should_split: boolean;
+      shouldSplit: boolean;
       delimiter: string | null;
-      map_to: string | null;
-      entity_field: EntityFieldDto | null;
+      mapTo: string | null;
+      entityField: EntityFieldDto | null;
       parts: Array<{
         index: number;
         name: string;
-        map_to: string | null;
-        entity_field: EntityFieldDto | null;
+        mapTo: string | null;
+        entityField: EntityFieldDto | null;
       }>;
     };
   }>;
@@ -113,15 +113,15 @@ export function buildGetMappingsResponse(
   const llmSuggestions = batchResult.columns.map((col) => ({
     header: col.header,
     suggestion: {
-      should_split: col.should_split,
+      shouldSplit: col.should_split,
       delimiter: col.delimiter,
-      map_to: col.map_to,
-      entity_field: parseEntityField(col.map_to),
+      mapTo: col.map_to,
+      entityField: parseEntityField(col.map_to),
       parts: col.parts.map((part) => ({
         index: part.index,
         name: part.name,
-        map_to: part.map_to,
-        entity_field: parseEntityField(part.map_to),
+        mapTo: part.map_to,
+        entityField: parseEntityField(part.map_to),
       })),
     },
   }));

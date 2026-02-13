@@ -248,7 +248,7 @@ describe("Load Data Handler", () => {
       expect(result.columns).toHaveLength(2);
       expect(result.llmSuggestions).toHaveLength(2);
       expect(result.llmSuggestions[0].header).toBe("Invoice No");
-      expect(result.llmSuggestions[0].suggestion.map_to).toBe(
+      expect(result.llmSuggestions[0].suggestion.mapTo).toBe(
         "purchase_records.invoice_no",
       );
     });
@@ -376,10 +376,10 @@ describe("Load Data Handler", () => {
       expect(result.llmSuggestions[0]).toHaveProperty("header");
       expect(result.llmSuggestions[0]).toHaveProperty("suggestion");
       expect(result.llmSuggestions[0].suggestion).toHaveProperty(
-        "should_split",
+        "shouldSplit",
       );
       expect(result.llmSuggestions[0].suggestion).toHaveProperty("delimiter");
-      expect(result.llmSuggestions[0].suggestion).toHaveProperty("map_to");
+      expect(result.llmSuggestions[0].suggestion).toHaveProperty("mapTo");
       expect(result.llmSuggestions[0].suggestion).toHaveProperty("parts");
     });
   });
