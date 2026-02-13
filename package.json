@@ -10,6 +10,7 @@
     "db:triggers": "bun run src/db/apply-updated-at-triggers.ts"
   },
   "dependencies": {
+    "@elysiajs/cors": "^1.4.1",
     "drizzle-orm": "latest",
     "elysia": "latest",
     "fflate": "^0.8.2",

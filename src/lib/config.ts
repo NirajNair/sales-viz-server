@@ -4,6 +4,7 @@ import { Environment } from "../enums/environment.enum";
 
 interface Config {
   env: string;
+  frontendBaseUrl: string;
   db: {
     url: string;
     host: string;
@@ -33,6 +34,11 @@ function initConfig(): Config {
     const env = process.env.NODE_ENV;
     if (!env || env.trim() === "") {
       throw new ConfigurationError("NODE_ENV is required but not set");
+    }
+
+    const frontendBaseUrl = process.env.FRONTEND_BASE_URL;
+    if (!frontendBaseUrl || frontendBaseUrl.trim() === "") {
+      throw new ConfigurationError("FRONTEND_BASE_URL is required but not set");
     }
 
     const dbHost = process.env.DB_HOST;
@@ -71,6 +77,7 @@ function initConfig(): Config {
 
     return {
       env,
+      frontendBaseUrl,
       db: {
         url: dbUrl,
         host: dbHost,

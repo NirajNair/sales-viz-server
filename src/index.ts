@@ -1,3 +1,4 @@
+import { cors } from "@elysiajs/cors";
 import { Elysia } from "elysia";
 import { randomUUID } from "node:crypto";
 import { requestContext } from "./lib/async-context";
@@ -6,6 +7,13 @@ import { logger, loggerWithContext } from "./lib/logger";
 import { router } from "./router";
 
 const app = new Elysia()
+  .use(
+    cors({
+      origin: config.frontendBaseUrl,
+      methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "Authorization"],
+    }),
+  )
   // Store requestId in Elysia store
   .onRequest(({ request, store }) => {
     const requestId = request.headers.get("x-request-id") || randomUUID();
@@ -22,7 +30,7 @@ const app = new Elysia()
   .onBeforeHandle(({ request, path, query, params, requestId }) => {
     // Set up AsyncLocalStorage context for this request
     requestContext.enterWith(requestId);
-    
+
     const contentType = request.headers.get("content-type") || undefined;
     const contentLength = request.headers.get("content-length") || undefined;
 
