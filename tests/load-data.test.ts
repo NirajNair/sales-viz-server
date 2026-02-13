@@ -1,6 +1,4 @@
 import {
-  afterAll,
-  beforeAll,
   beforeEach,
   describe,
   expect,
@@ -8,92 +6,52 @@ import {
   test,
 } from "bun:test";
 import type { Context } from "elysia";
+import { createHandleGetMappings } from "../src/handlers/load-data";
+import type { ParsedExcel } from "../src/lib/excel";
+import type { LlmBatchSuggestion } from "../src/lib/llm";
 
-describe("Upload Handler", () => {
-  let handleUpload: typeof import("../src/handlers/upload").handleUpload;
-  let llmModule: typeof import("../src/lib/llm");
+describe("Load Data Handler", () => {
+  const mockLogger = {
+    warn: mock(() => {}),
+    info: mock(() => {}),
+    error: mock(() => {}),
+  };
 
-  let parseExcelMock: ReturnType<typeof mock>;
-  let mockOpenAIResponse: any = null;
-  let mockOpenAIError: any = null;
-
-  beforeAll(async () => {
-    // Mock config first
-    mock.module("../src/lib/config", () => ({
-      config: {
-        env: "test",
-        db: {
-          url: "postgresql://127.0.0.1:5432",
-          host: "127.0.0.1",
-          port: 5432,
-        },
-        llm: {
-          url: "http://localhost:8080",
-        },
-        server: {
-          port: 3000,
-        },
-        logs: {
-          dir: "/tmp",
-          level: "info",
-        },
-      },
-    }));
-
-    // Create mocks
-    parseExcelMock = mock(async () => {
+  const parseExcelMock = mock<(file: File) => Promise<ParsedExcel>>(
+    async () => {
       throw new Error("parseExcel not mocked");
-    });
+    },
+  );
 
-    mock.module("../src/lib/excel", () => ({
-      parseExcel: parseExcelMock,
-    }));
+  let mockBatchResponse: LlmBatchSuggestion | null = null;
+  let mockBatchError: Error | null = null;
 
-    const mockLogger = {
-      warn: mock(() => {}),
-      info: mock(() => {}),
-      error: mock(() => {}),
-    };
-    
-    mock.module("../src/lib/logger", () => ({
-      logger: mockLogger,
-      loggerWithContext: mockLogger,
-    }));
+  const getBatchMappingSuggestionsMock = mock<
+    (
+      samples: Array<{ header: string; sampleValue: string }>,
+      dbColumns: string[],
+    ) => Promise<LlmBatchSuggestion>
+  >(async () => {
+    if (mockBatchError) {
+      throw mockBatchError;
+    }
+    if (!mockBatchResponse) {
+      throw new Error("Batch mock response not set");
+    }
+    return mockBatchResponse;
+  });
 
-    // Import llm module for mocking
-    llmModule = await import("../src/lib/llm");
-    
-    // Import handler after mocking
-    const uploadModule = await import("../src/handlers/upload");
-    handleUpload = uploadModule.handleUpload;
+  const handleGetMappings = createHandleGetMappings({
+    parseExcel: parseExcelMock,
+    getBatchMappingSuggestions: getBatchMappingSuggestionsMock,
+    loggerWithContext: mockLogger,
   });
 
   beforeEach(() => {
     parseExcelMock.mockClear();
-    mockOpenAIResponse = null;
-    mockOpenAIError = null;
-    
-    // Inject mock OpenAI client
-    const mockOpenAI = {
-      chat: {
-        completions: {
-          create: async () => {
-            if (mockOpenAIError) {
-              throw mockOpenAIError;
-            }
-            if (!mockOpenAIResponse) {
-              throw new Error("OpenAI mock response not set");
-            }
-            return mockOpenAIResponse;
-          },
-        },
-      },
-    };
-    llmModule.openaiClient.set(mockOpenAI as any);
-  });
-
-  afterAll(() => {
-    mock.restore();
+    getBatchMappingSuggestionsMock.mockClear();
+    mockBatchResponse = null;
+    mockBatchError = null;
   });
 
   function createMockContext(
@@ -139,13 +97,13 @@ describe("Upload Handler", () => {
     test("should throw error when form data cannot be parsed", async () => {
       const ctx = createMockContext(undefined, { invalidFormData: true });
 
-      await expect(handleUpload(ctx)).rejects.toThrow("Invalid form data");
+      await expect(handleGetMappings(ctx)).rejects.toThrow("Invalid form data");
     });
 
     test("should throw error when no file is provided", async () => {
       const ctx = createMockContext();
 
-      await expect(handleUpload(ctx)).rejects.toThrow("Invalid input");
+      await expect(handleGetMappings(ctx)).rejects.toThrow("Invalid input");
     });
 
     test("should throw error for empty file", async () => {
@@ -154,14 +112,16 @@ describe("Upload Handler", () => {
       });
       const ctx = createMockContext(file);
 
-      await expect(handleUpload(ctx)).rejects.toThrow("File is empty");
+      await expect(handleGetMappings(ctx)).rejects.toThrow("File is empty");
     });
 
     test("should throw error for invalid file extension", async () => {
       const file = createMockFile("test.pdf", "application/pdf");
       const ctx = createMockContext(file);
 
-      await expect(handleUpload(ctx)).rejects.toThrow("Only .xlsx or .xls files are supported");
+      await expect(handleGetMappings(ctx)).rejects.toThrow(
+        "Only .xlsx or .xls files are supported",
+      );
     });
 
     test("should accept .xlsx files", async () => {
@@ -169,22 +129,16 @@ describe("Upload Handler", () => {
         columns: [{ index: 0, header: "Test", sampleValue: "value" }],
       });
 
-      mockOpenAIResponse = {
-        choices: [{
-          message: {
-            content: JSON.stringify({
-              columns: [
-                {
-                  header: "Test",
-                  should_split: false,
-                  delimiter: null,
-                  map_to: null,
-                  parts: [],
-                },
-              ],
-            }),
+      mockBatchResponse = {
+        columns: [
+          {
+            header: "Test",
+            should_split: false,
+            delimiter: null,
+            map_to: null,
+            parts: [],
           },
-        }],
+        ],
       };
 
       const file = createMockFile(
@@ -193,7 +147,7 @@ describe("Upload Handler", () => {
       );
       const ctx = createMockContext(file);
 
-      const result = await handleUpload(ctx);
+      const result = await handleGetMappings(ctx);
 
       expect(result.columns).toBeDefined();
     });
@@ -203,28 +157,22 @@ describe("Upload Handler", () => {
         columns: [{ index: 0, header: "Test", sampleValue: "value" }],
       });
 
-      mockOpenAIResponse = {
-        choices: [{
-          message: {
-            content: JSON.stringify({
-              columns: [
-                {
-                  header: "Test",
-                  should_split: false,
-                  delimiter: null,
-                  map_to: null,
-                  parts: [],
-                },
-              ],
-            }),
+      mockBatchResponse = {
+        columns: [
+          {
+            header: "Test",
+            should_split: false,
+            delimiter: null,
+            map_to: null,
+            parts: [],
           },
-        }],
+        ],
       };
 
       const file = createMockFile("test.xls", "application/vnd.ms-excel");
       const ctx = createMockContext(file);
 
-      const result = await handleUpload(ctx);
+      const result = await handleGetMappings(ctx);
 
       expect(result.columns).toBeDefined();
     });
@@ -240,7 +188,9 @@ describe("Upload Handler", () => {
       );
       const ctx = createMockContext(file);
 
-      await expect(handleUpload(ctx)).rejects.toThrow("Invalid Excel format");
+      await expect(handleGetMappings(ctx)).rejects.toThrow(
+        "Invalid Excel format",
+      );
     });
 
     test("should handle parseExcel error with non-Error object", async () => {
@@ -252,7 +202,9 @@ describe("Upload Handler", () => {
       );
       const ctx = createMockContext(file);
 
-      await expect(handleUpload(ctx)).rejects.toThrow("Failed to parse Excel file");
+      await expect(handleGetMappings(ctx)).rejects.toThrow(
+        "Failed to parse Excel file",
+      );
     });
   });
 
@@ -265,29 +217,23 @@ describe("Upload Handler", () => {
         ],
       });
 
-      mockOpenAIResponse = {
-        choices: [{
-          message: {
-            content: JSON.stringify({
-              columns: [
-                {
-                  header: "Invoice No",
-                  should_split: false,
-                  delimiter: null,
-                  map_to: "purchase_records.invoice_no",
-                  parts: [],
-                },
-                {
-                  header: "Amount",
-                  should_split: false,
-                  delimiter: null,
-                  map_to: "purchase_records.assess_val",
-                  parts: [],
-                },
-              ],
-            }),
+      mockBatchResponse = {
+        columns: [
+          {
+            header: "Invoice No",
+            should_split: false,
+            delimiter: null,
+            map_to: "purchase_records.invoice_no",
+            parts: [],
           },
-        }],
+          {
+            header: "Amount",
+            should_split: false,
+            delimiter: null,
+            map_to: "purchase_records.assess_val",
+            parts: [],
+          },
+        ],
       };
 
       const file = createMockFile(
@@ -296,7 +242,7 @@ describe("Upload Handler", () => {
       );
       const ctx = createMockContext(file);
 
-      const result = await handleUpload(ctx);
+      const result = await handleGetMappings(ctx);
 
       expect(ctx.set.status).toBe(200);
       expect(result.columns).toHaveLength(2);
@@ -312,8 +258,7 @@ describe("Upload Handler", () => {
         columns: [{ index: 0, header: "Test", sampleValue: "value" }],
       });
 
-      mockOpenAIError = new Error("timeout");
-      (mockOpenAIError as any).code = "ECONNABORTED";
+      mockBatchError = new Error("LLM request timed out");
 
       const file = createMockFile(
         "test.xlsx",
@@ -321,7 +266,9 @@ describe("Upload Handler", () => {
       );
       const ctx = createMockContext(file);
 
-      await expect(handleUpload(ctx)).rejects.toThrow("LLM request timed out");
+      await expect(handleGetMappings(ctx)).rejects.toThrow(
+        "LLM request timed out",
+      );
     });
 
     test("should handle LLM unreachable error", async () => {
@@ -329,8 +276,7 @@ describe("Upload Handler", () => {
         columns: [{ index: 0, header: "Test", sampleValue: "value" }],
       });
 
-      mockOpenAIError = new Error("Connection refused");
-      (mockOpenAIError as any).code = "ECONNREFUSED";
+      mockBatchError = new Error("Failed to reach LLM endpoint");
 
       const file = createMockFile(
         "test.xlsx",
@@ -338,7 +284,9 @@ describe("Upload Handler", () => {
       );
       const ctx = createMockContext(file);
 
-      await expect(handleUpload(ctx)).rejects.toThrow("Failed to reach LLM endpoint");
+      await expect(handleGetMappings(ctx)).rejects.toThrow(
+        "Failed to reach LLM endpoint",
+      );
     });
 
     test("should handle LLM bad response error", async () => {
@@ -346,13 +294,7 @@ describe("Upload Handler", () => {
         columns: [{ index: 0, header: "Test", sampleValue: "value" }],
       });
 
-      mockOpenAIResponse = {
-        choices: [{
-          message: {
-            content: "not valid json",
-          },
-        }],
-      };
+      mockBatchError = new Error("LLM returned malformed JSON");
 
       const file = createMockFile(
         "test.xlsx",
@@ -360,7 +302,9 @@ describe("Upload Handler", () => {
       );
       const ctx = createMockContext(file);
 
-      await expect(handleUpload(ctx)).rejects.toThrow("LLM returned malformed JSON");
+      await expect(handleGetMappings(ctx)).rejects.toThrow(
+        "LLM returned malformed JSON",
+      );
     });
 
     test("should handle generic errors as LLM_UNREACHABLE", async () => {
@@ -368,7 +312,7 @@ describe("Upload Handler", () => {
         columns: [{ index: 0, header: "Test", sampleValue: "value" }],
       });
 
-      mockOpenAIError = new Error("Unexpected error");
+      mockBatchError = new Error("Failed to reach LLM endpoint");
 
       const file = createMockFile(
         "test.xlsx",
@@ -376,7 +320,9 @@ describe("Upload Handler", () => {
       );
       const ctx = createMockContext(file);
 
-      await expect(handleUpload(ctx)).rejects.toThrow("Failed to reach LLM endpoint");
+      await expect(handleGetMappings(ctx)).rejects.toThrow(
+        "Failed to reach LLM endpoint",
+      );
     });
   });
 
@@ -389,35 +335,29 @@ describe("Upload Handler", () => {
         ],
       });
 
-      mockOpenAIResponse = {
-        choices: [{
-          message: {
-            content: JSON.stringify({
-              columns: [
-                {
-                  header: "Col1",
-                  should_split: true,
-                  delimiter: "-",
-                  map_to: null,
-                  parts: [
-                    {
-                      index: 0,
-                      name: "Part1",
-                      map_to: "purchase_records.invoice_no",
-                    },
-                  ],
-                },
-                {
-                  header: "Col2",
-                  should_split: false,
-                  delimiter: null,
-                  map_to: "entities.gstin",
-                  parts: [],
-                },
-              ],
-            }),
+      mockBatchResponse = {
+        columns: [
+          {
+            header: "Col1",
+            should_split: true,
+            delimiter: "-",
+            map_to: null,
+            parts: [
+              {
+                index: 0,
+                name: "Part1",
+                map_to: "purchase_records.invoice_no",
+              },
+            ],
           },
-        }],
+          {
+            header: "Col2",
+            should_split: false,
+            delimiter: null,
+            map_to: "entities.gstin",
+            parts: [],
+          },
+        ],
       };
 
       const file = createMockFile(
@@ -426,7 +366,7 @@ describe("Upload Handler", () => {
       );
       const ctx = createMockContext(file);
 
-      const result = await handleUpload(ctx);
+      const result = await handleGetMappings(ctx);
 
       expect(result).toHaveProperty("columns");
       expect(result).toHaveProperty("llmSuggestions");
@@ -435,7 +375,9 @@ describe("Upload Handler", () => {
 
       expect(result.llmSuggestions[0]).toHaveProperty("header");
       expect(result.llmSuggestions[0]).toHaveProperty("suggestion");
-      expect(result.llmSuggestions[0].suggestion).toHaveProperty("should_split");
+      expect(result.llmSuggestions[0].suggestion).toHaveProperty(
+        "should_split",
+      );
       expect(result.llmSuggestions[0].suggestion).toHaveProperty("delimiter");
       expect(result.llmSuggestions[0].suggestion).toHaveProperty("map_to");
       expect(result.llmSuggestions[0].suggestion).toHaveProperty("parts");

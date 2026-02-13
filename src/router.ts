@@ -1,10 +1,10 @@
 import { Elysia } from "elysia";
 import { handleHealth, handleReady } from "./handlers/health";
+import { handleGetMappings } from "./handlers/load-data";
 import { handleLogsExport } from "./handlers/logs";
-import { handleUpload } from "./handlers/upload";
 
 export const router = new Elysia()
   .get("/health", handleHealth)
   .get("/ready", handleReady)
-  .post("/api/upload", handleUpload)
+  .post("/api/load-data/get-mappings", handleGetMappings)
   .post("/api/logs/export", handleLogsExport);

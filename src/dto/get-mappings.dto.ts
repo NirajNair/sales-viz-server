@@ -3,7 +3,7 @@ import type { ParsedColumn } from "../lib/excel";
 import type { LlmBatchSuggestion } from "../lib/llm";
 import { validateWithZod } from "../lib/validation";
 
-export const UploadRequestSchema = z.object({
+export const GetMappingsRequestSchema = z.object({
   file: z
     .instanceof(File)
     .refine((file) => file.size > 0, "File is empty")
@@ -20,12 +20,12 @@ export const UploadRequestSchema = z.object({
 });
 
 // Validation helper
-export function validateUpload(file: unknown): File {
-  return validateWithZod(UploadRequestSchema, { file }).file;
+export function validateGetMappingsRequest(file: unknown): File {
+  return validateWithZod(GetMappingsRequestSchema, { file }).file;
 }
 
 // Type inference from schema
-export type UploadRequestDto = z.infer<typeof UploadRequestSchema>;
+export type GetMappingsRequestDto = z.infer<typeof GetMappingsRequestSchema>;
 
 // Excel column from parsed file
 export interface ExcelColumnDto {
@@ -59,7 +59,7 @@ export interface ColumnMappingSuggestionDto {
 }
 
 // Response DTO for upload endpoint
-export interface UploadResponseDto {
+export interface GetMappingsResponseDto {
   columns: ExcelColumnDto[];
   llmSuggestions: Array<{
     header: string;
@@ -106,10 +106,10 @@ function parseEntityField(mapTo: string | null): EntityFieldDto | null {
  * Builds the upload response DTO from parsed Excel columns and LLM batch suggestions.
  * Transforms LLM suggestions into the response format expected by the API.
  */
-export function buildUploadResponse(
+export function buildGetMappingsResponse(
   columns: ParsedColumn[],
   batchResult: LlmBatchSuggestion,
-): UploadResponseDto {
+): GetMappingsResponseDto {
   const llmSuggestions = batchResult.columns.map((col) => ({
     header: col.header,
     suggestion: {
