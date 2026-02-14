@@ -67,28 +67,62 @@ export const openaiClient = {
   },
 };
 
-const SINGLE_SYSTEM_PROMPT = `You are an expert data mapper. Your task is to analyze Excel columns and decide how to map them to database columns.
-  
-  CRITICAL: Respond immediately with JSON only. DO NOT use <think> tags or show your reasoning process.
-  
-  Your response must be valid JSON in this format:
-  {
-    "should_split": boolean,
-    "delimiter": string or null,
-    "map_to": string or null,
-    "parts": [
-      { "index": 0, "name": "Part Name", "map_to": "db_column_name" }
-    ]
-  }
+const SINGLE_MAPPING_SYSTEM_PROMPT = `You are an expert data mapper. Your task is to analyze Excel columns and decide how to map them to database columns.
 
-  Rules:
-  1. If the column header or sample value contains a clear delimiter (/, -, |, :), split it
-  2. Map each part to the most similar database column
-  3. If no suitable database column exists, set map_to to null
-  4. If column should not be split, map directly or set map_to to null
-  5. Return ONLY valid JSON, no extra text, no explanations`;
+CRITICAL: Respond immediately with JSON only. DO NOT use <think> tags or show your reasoning process.
 
-const BATCH_SYSTEM_PROMPT = `You are an expert data mapper. Your task is to analyze Excel columns and decide how to map them to database columns.
+Your response must be valid JSON in this format:
+{
+  "should_split": boolean,
+  "delimiter": string or null,
+  "map_to": string or null,
+  "parts": [
+    { "index": 0, "name": "Part Name", "map_to": "db_column_name" }
+  ]
+}
+
+Available Database Columns:
+- purchase_records.invoice_no
+- purchase_records.invoice_date
+- purchase_records.state
+- purchase_records.ewb_no
+- purchase_records.ewb_date
+- purchase_records.assess_val
+- purchase_records.tax_val
+- seller_entity.name (seller organization name)
+- seller_entity.gstin (seller GST identification number)
+- seller_entity.place (seller location/city)
+- seller_entity.pin (seller PIN code)
+- buyer_entity.name (buyer organization name)
+- buyer_entity.gstin (buyer GST identification number)
+- buyer_entity.place (buyer location/city)
+- buyer_entity.pin (buyer PIN code)
+- hsn_codes.code (HSN/SAC code)
+- hsn_codes.chemical_name (product/chemical name)
+
+Guidelines:
+1. If the column header or sample value contains a clear delimiter (/, -, |, :), split it
+2. Map seller-related columns to seller_entity.* fields
+3. Map buyer-related columns to buyer_entity.* fields
+4. Map product/item columns to hsn_codes.* fields
+5. Map invoice/transaction columns to purchase_records.* fields
+6. If no suitable database column exists, set map_to to null
+7. If column should not be split, map directly or set map_to to null
+8. Return ONLY valid JSON, no extra text, no explanations
+9. Co-occurrence rule (important): Certain database fields commonly appear together in a single Excel column separated by a delimiter.
+   If one field from a known pair is identified in a column, assume a high probability that the paired field is also present in the same column.
+   In such cases, prefer splitting the column and mapping each part to its respective paired database column when the data pattern supports it.
+
+Known pairs:
+- purchase_records.invoice_no + purchase_records.invoice_date
+- purchase_records.ewb_no + purchase_records.ewb_date
+- seller_entity.name + seller_entity.gstin
+- seller_entity.place + seller_entity.pin
+- buyer_entity.name + buyer_entity.gstin
+- buyer_entity.place + buyer_entity.pin
+- hsn_codes.code + hsn_codes.chemical_name`;
+
+const BATCH_MAPPING_SYSTEM_PROMPT = `You are an expert data mapper. Your task is to analyze Excel columns and decide how to map them to database columns.
 
 CRITICAL: Respond immediately with JSON only. DO NOT use <think> tags or show your reasoning process.
 
@@ -135,7 +169,20 @@ Guidelines:
 6. If no suitable database column exists, set map_to to null
 7. If column should not be split, map directly or set map_to to null
 8. Return ONLY valid JSON, no extra text, no explanations
-9. The "header" field in each column object must match exactly the header from the input`;
+9. The "header" field in each column object must match exactly the header from the input
+10. One availbale database column should not be mapped twice
+11. Co-occurrence rule (important): Certain database fields commonly appear together in a single Excel column separated by a delimiter.
+    If one field from a known pair is identified in a column, assume a high probability that the paired field is also present in the same column.
+    In such cases, prefer splitting the column and mapping each part to its respective paired database column when the data pattern supports it.
+
+Known pairs:
+- purchase_records.invoice_no + purchase_records.invoice_date
+- purchase_records.ewb_no + purchase_records.ewb_date
+- seller_entity.name + seller_entity.gstin
+- seller_entity.place + seller_entity.pin
+- buyer_entity.name + buyer_entity.gstin
+- buyer_entity.place + buyer_entity.pin
+- hsn_codes.code + hsn_codes.chemical_name`;
 
 function buildUserPrompt(sample: ColumnSample, dbColumns: string[]) {
   const dbList = dbColumns.join(", ");
@@ -243,7 +290,10 @@ export async function getMappingSuggestion(
 ): Promise<LlmSuggestion> {
   const userPrompt = buildUserPrompt(sample, dbColumns);
   loggerWithContext.info({ userPrompt }, "User prompt for mapping suggestion");
-  const content = await requestCompletion(SINGLE_SYSTEM_PROMPT, userPrompt);
+  const content = await requestCompletion(
+    SINGLE_MAPPING_SYSTEM_PROMPT,
+    userPrompt,
+  );
   loggerWithContext.info({ content }, "Mapping suggestion from LLM");
 
   let parsed: unknown;
@@ -270,7 +320,10 @@ export async function getBatchMappingSuggestions(
     { userPrompt },
     "User prompt for batch mapping suggestions",
   );
-  const content = await requestCompletion(BATCH_SYSTEM_PROMPT, userPrompt);
+  const content = await requestCompletion(
+    BATCH_MAPPING_SYSTEM_PROMPT,
+    userPrompt,
+  );
   loggerWithContext.info({ content }, "Mapping suggestions from LLM");
 
   let parsed: unknown;
