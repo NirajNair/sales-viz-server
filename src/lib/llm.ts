@@ -12,7 +12,6 @@ const LlmSuggestionSchema = z.object({
     .array(
       z.object({
         index: z.number().int().nonnegative(),
-        name: z.string(),
         map_to: z.string().nullable(),
       }),
     )
@@ -32,7 +31,6 @@ const LlmBatchSuggestionSchema = z.object({
         .array(
           z.object({
             index: z.number().int().nonnegative(),
-            name: z.string(),
             map_to: z.string().nullable(),
           }),
         )

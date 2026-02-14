@@ -117,8 +117,8 @@ describe("LLM Module", () => {
               delimiter: "/",
               map_to: null,
               parts: [
-                { index: 0, name: "First Part", map_to: "purchaseRecords.col1" },
-                { index: 1, name: "Second Part", map_to: "purchaseRecords.col2" },
+                { index: 0, map_to: "purchaseRecords.col1" },
+                { index: 1, map_to: "purchaseRecords.col2" },
               ],
             }),
           },
@@ -229,8 +229,8 @@ describe("LLM Module", () => {
             delimiter: "/",
             map_to: null,
             parts: [
-              { index: 0, name: "Name", map_to: "purchaseRecords.name" },
-              { index: 1, name: "Type", map_to: "purchaseRecords.type" },
+              { index: 0, map_to: "purchaseRecords.name" },
+              { index: 1, map_to: "purchaseRecords.type" },
             ],
           },
         ],

@@ -345,7 +345,6 @@ describe("Load Data Handler", () => {
             parts: [
               {
                 index: 0,
-                name: "Part1",
                 map_to: "purchase_records.invoice_no",
               },
             ],

@@ -45,7 +45,6 @@ export interface GetMappingsResponseDto {
       mapTo: string | null;
       parts: Array<{
         index: number;
-        name: string;
         mapTo: string | null;
       }>;
     };
@@ -68,7 +67,6 @@ export function buildGetMappingsResponse(
       mapTo: col.map_to,
       parts: col.parts.map((part) => ({
         index: part.index,
-        name: part.name,
         mapTo: part.map_to,
       })),
     },
