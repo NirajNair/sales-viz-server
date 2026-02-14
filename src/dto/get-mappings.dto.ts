@@ -34,30 +34,6 @@ export interface ExcelColumnDto {
   sampleValue: string;
 }
 
-// Entity type discriminator
-export type EntityType = "seller" | "buyer";
-
-// Structured entity field info
-export interface EntityFieldDto {
-  entityType: EntityType;
-  field: string; // e.g., 'name', 'gstin', 'place', 'pin'
-}
-
-// Column mapping suggestion (enriched)
-export interface ColumnMappingSuggestionDto {
-  header: string;
-  shouldSplit: boolean;
-  delimiter: string | null;
-  mapTo: string | null; // Full DB column like 'seller_entity.name'
-  entityField: EntityFieldDto | null; // Parsed entity info
-  parts: Array<{
-    index: number;
-    name: string;
-    mapTo: string | null;
-    entityField: EntityFieldDto | null;
-  }>;
-}
-
 // Response DTO for upload endpoint
 export interface GetMappingsResponseDto {
   columns: ExcelColumnDto[];
@@ -67,39 +43,13 @@ export interface GetMappingsResponseDto {
       shouldSplit: boolean;
       delimiter: string | null;
       mapTo: string | null;
-      entityField: EntityFieldDto | null;
       parts: Array<{
         index: number;
         name: string;
         mapTo: string | null;
-        entityField: EntityFieldDto | null;
       }>;
     };
   }>;
-}
-
-/**
- * Parses a database column name to extract entity field information.
- * Returns null if the column is not an entity field.
- */
-function parseEntityField(mapTo: string | null): EntityFieldDto | null {
-  if (!mapTo) return null;
-
-  if (mapTo.startsWith("seller_entity.")) {
-    return {
-      entityType: "seller",
-      field: mapTo.replace("seller_entity.", ""),
-    };
-  }
-
-  if (mapTo.startsWith("buyer_entity.")) {
-    return {
-      entityType: "buyer",
-      field: mapTo.replace("buyer_entity.", ""),
-    };
-  }
-
-  return null;
 }
 
 /**
@@ -116,12 +66,10 @@ export function buildGetMappingsResponse(
       shouldSplit: col.should_split,
       delimiter: col.delimiter,
       mapTo: col.map_to,
-      entityField: parseEntityField(col.map_to),
       parts: col.parts.map((part) => ({
         index: part.index,
         name: part.name,
         mapTo: part.map_to,
-        entityField: parseEntityField(part.map_to),
       })),
     },
   }));
