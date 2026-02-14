@@ -7,8 +7,11 @@ interface Config {
   frontendBaseUrl: string;
   db: {
     url: string;
+    user: string;
+    password: string;
     host: string;
     port: number;
+    name: string;
   };
   llm: {
     url: string;
@@ -46,13 +49,29 @@ function initConfig(): Config {
       throw new ConfigurationError("DB_HOST is required but not set");
     }
 
+    const dbUser = process.env.DB_USER;
+    if (!dbUser || dbUser.trim() === "") {
+      throw new ConfigurationError("DB_USER is required but not set");
+    }
+
+    const dbPassword = process.env.DB_PASSWORD;
+    if (!dbPassword || dbPassword.trim() === "") {
+      throw new ConfigurationError("DB_PASSWORD is required but not set");
+    }
+
+    const dbName = process.env.DB_NAME;
+    if (!dbName || dbName.trim() === "") {
+      throw new ConfigurationError("DB_NAME is required but not set");
+    }
+
     const dbPortStr = process.env.DB_PORT;
     if (!dbPortStr || Number.isNaN(Number.parseInt(dbPortStr, 10))) {
       throw new ConfigurationError("DB_PORT must be a valid number");
     }
     const dbPort = Number.parseInt(dbPortStr, 10);
 
-    const dbUrl = `postgresql://${dbHost}:${dbPort}`;
+    // const dbUrl = `postgresql://${dbHost}:${dbPort}`;
+    const dbUrl = `postgresql://${dbUser}:${encodeURIComponent(dbPassword)}@${dbHost}:${dbPort}/${dbName}`;
 
     const llmUrl = process.env.LLM_URL;
     if (!llmUrl || llmUrl.trim() === "") {
@@ -80,8 +99,11 @@ function initConfig(): Config {
       frontendBaseUrl,
       db: {
         url: dbUrl,
+        user: dbUser,
+        password: dbPassword,
         host: dbHost,
         port: dbPort,
+        name: dbName,
       },
       llm: {
         url: llmUrl,
