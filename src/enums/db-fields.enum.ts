@@ -1,4 +1,4 @@
-export enum DbFieldMapping {
+export enum DbFields {
   SELLER_GSTIN = "seller_entity.gstin",
   SELLER_NAME = "seller_entity.name",
   SELLER_PLACE = "seller_entity.place",

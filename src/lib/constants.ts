@@ -1,14 +1,14 @@
-import { DbFieldMapping } from "../enums/db-field-mapping.enum";
+import { DbFields } from "../enums/db-fields.enum";
 
 export const MAX_EXCEL_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 export const MANDATORY_FIELDS = [
-  DbFieldMapping.SELLER_NAME,
-  DbFieldMapping.SELLER_GSTIN,
-  DbFieldMapping.BUYER_NAME,
-  DbFieldMapping.BUYER_GSTIN,
-  DbFieldMapping.PURCHASE_ASSESS_VAL,
-  DbFieldMapping.HSN_CODE,
+  DbFields.SELLER_NAME,
+  DbFields.SELLER_GSTIN,
+  DbFields.BUYER_NAME,
+  DbFields.BUYER_GSTIN,
+  DbFields.PURCHASE_ASSESS_VAL,
+  DbFields.HSN_CODE,
 ] as const;
 
 export const DATE_FORMATS = [

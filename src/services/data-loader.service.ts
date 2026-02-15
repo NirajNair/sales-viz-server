@@ -3,7 +3,7 @@ import * as XLSX from "xlsx";
 import { db } from "../db";
 import { entities, hsnCodes, purchaseRecords } from "../db/schema";
 import type { Mapping } from "../dto/load-data.dto";
-import { DbFieldMapping } from "../enums/db-field-mapping.enum";
+import { DbFields } from "../enums/db-fields.enum";
 import { parseAnyDate } from "../lib/date-parser";
 import { ValidationError } from "../lib/errors";
 
@@ -182,55 +182,55 @@ function applyMapping(
   value: string,
 ): void {
   switch (mapTo) {
-    case DbFieldMapping.SELLER_GSTIN:
+    case DbFields.SELLER_GSTIN:
       result.sellerGstin = value;
       break;
-    case DbFieldMapping.SELLER_NAME:
+    case DbFields.SELLER_NAME:
       result.sellerName = value;
       break;
-    case DbFieldMapping.SELLER_PLACE:
+    case DbFields.SELLER_PLACE:
       result.sellerPlace = value;
       break;
-    case DbFieldMapping.SELLER_PIN:
+    case DbFields.SELLER_PIN:
       result.sellerPin = value;
       break;
-    case DbFieldMapping.BUYER_GSTIN:
+    case DbFields.BUYER_GSTIN:
       result.buyerGstin = value;
       break;
-    case DbFieldMapping.BUYER_NAME:
+    case DbFields.BUYER_NAME:
       result.buyerName = value;
       break;
-    case DbFieldMapping.BUYER_PLACE:
+    case DbFields.BUYER_PLACE:
       result.buyerPlace = value;
       break;
-    case DbFieldMapping.BUYER_PIN:
+    case DbFields.BUYER_PIN:
       result.buyerPin = value;
       break;
-    case DbFieldMapping.PURCHASE_INVOICE_NO:
+    case DbFields.PURCHASE_INVOICE_NO:
       result.invoiceNo = value;
       break;
-    case DbFieldMapping.PURCHASE_INVOICE_DATE:
+    case DbFields.PURCHASE_INVOICE_DATE:
       result.invoiceDate = parseAnyDate(value) ?? undefined;
       break;
-    case DbFieldMapping.PURCHASE_STATE:
+    case DbFields.PURCHASE_STATE:
       result.state = value;
       break;
-    case DbFieldMapping.PURCHASE_EWB_NO:
+    case DbFields.PURCHASE_EWB_NO:
       result.ewbNo = value;
       break;
-    case DbFieldMapping.PURCHASE_EWB_DATE:
+    case DbFields.PURCHASE_EWB_DATE:
       result.ewbDate = parseAnyDate(value) ?? undefined;
       break;
-    case DbFieldMapping.PURCHASE_ASSESS_VAL:
+    case DbFields.PURCHASE_ASSESS_VAL:
       result.assessVal = parseNumeric(value);
       break;
-    case DbFieldMapping.PURCHASE_TAX_VAL:
+    case DbFields.PURCHASE_TAX_VAL:
       result.taxVal = parseNumeric(value);
       break;
-    case DbFieldMapping.HSN_CODE:
+    case DbFields.HSN_CODE:
       result.hsnCode = value;
       break;
-    case DbFieldMapping.HSN_CHEMICAL_NAME:
+    case DbFields.HSN_CHEMICAL_NAME:
       result.hsnChemicalName = value;
       break;
   }
