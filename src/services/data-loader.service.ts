@@ -4,7 +4,7 @@ import { db } from "../db";
 import { entities, hsnCodes, purchaseRecords } from "../db/schema";
 import type { Mapping } from "../dto/load-data.dto";
 import { DbFields } from "../enums/db-fields.enum";
-import { parseAnyDate } from "../lib/date-parser";
+import { parseDateWithFormat } from "../lib/date-parser";
 import { ValidationError } from "../lib/errors";
 
 interface ParsedRow {
@@ -142,11 +142,16 @@ function parseRow(row: unknown[], mappings: Mapping[]): ParsedRow {
       for (const partMapping of mapping.parts) {
         const partValue = parts[partMapping.index]?.trim() ?? "";
         console.log("partValue", partMapping.mapTo, partValue);
-        applyMapping(result, partMapping.mapTo, partValue);
+        applyMapping(
+          result,
+          partMapping.mapTo,
+          partValue,
+          partMapping.dateFormat,
+        );
       }
     } else if (mapping.mappedTo) {
       console.log("mapping.mappedTo", mapping.mappedTo, cellValue);
-      applyMapping(result, mapping.mappedTo, cellValue);
+      applyMapping(result, mapping.mappedTo, cellValue, mapping.dateFormat);
     }
   }
 
@@ -180,6 +185,7 @@ function applyMapping(
   result: Partial<ParsedRow>,
   mapTo: string,
   value: string,
+  dateFormat?: string | null | undefined,
 ): void {
   switch (mapTo) {
     case DbFields.SELLER_GSTIN:
@@ -210,7 +216,16 @@ function applyMapping(
       result.invoiceNo = value;
       break;
     case DbFields.PURCHASE_INVOICE_DATE:
-      result.invoiceDate = parseAnyDate(value) ?? undefined;
+      if (!dateFormat) {
+        throw ValidationError("Date format not specified for invoice date");
+      }
+      const parsedInvoiceDate = parseDateWithFormat(value, dateFormat);
+      if (!parsedInvoiceDate) {
+        throw ValidationError(
+          `Unable to parse date "${value}" with format "${dateFormat}" for invoice date`,
+        );
+      }
+      result.invoiceDate = parsedInvoiceDate;
       break;
     case DbFields.PURCHASE_STATE:
       result.state = value;
@@ -219,7 +234,16 @@ function applyMapping(
       result.ewbNo = value;
       break;
     case DbFields.PURCHASE_EWB_DATE:
-      result.ewbDate = parseAnyDate(value) ?? undefined;
+      if (!dateFormat) {
+        throw ValidationError("Date format not specified for EWB date");
+      }
+      const parsedEwbDate = parseDateWithFormat(value, dateFormat);
+      if (!parsedEwbDate) {
+        throw ValidationError(
+          `Unable to parse date "${value}" with format "${dateFormat}" for EWB date`,
+        );
+      }
+      result.ewbDate = parsedEwbDate;
       break;
     case DbFields.PURCHASE_ASSESS_VAL:
       result.assessVal = parseNumeric(value);

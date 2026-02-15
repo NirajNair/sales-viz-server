@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DbFields } from "../enums/db-fields.enum";
 import { MANDATORY_FIELDS, MAX_EXCEL_FILE_SIZE } from "../lib/constants";
 import { ValidationError } from "../lib/errors";
 import { validateWithZod } from "../lib/validation";
@@ -7,6 +8,7 @@ export const MappingPartSchema = z.object({
   index: z.number(),
   name: z.string(),
   mapTo: z.string(),
+  dateFormat: z.string().nullable().optional(),
 });
 
 export const MappingSchema = z.object({
@@ -17,6 +19,7 @@ export const MappingSchema = z.object({
   delimiter: z.string().nullable(),
   mappedTo: z.string().nullable(),
   parts: z.array(MappingPartSchema),
+  dateFormat: z.string().nullable().optional(),
 });
 
 export const LoadDataFileSchema = z
@@ -83,6 +86,7 @@ export function validateLoadDataRequest(
 
   validateMandatoryFields(validatedMappings);
   validateNoDuplicateMappings(validatedMappings);
+  validateDateFormats(validatedMappings);
 
   return { file: validatedFile, mappings: validatedMappings };
 }
@@ -143,6 +147,36 @@ function validateNoDuplicateMappings(mappings: Mapping[]): void {
     throw ValidationError(
       `Duplicate field mappings detected: ${duplicates.join(", ")}`,
     );
+  }
+}
+
+/**
+ * Validates that date fields have a dateFormat specified.
+ */
+function validateDateFormats(mappings: Mapping[]): void {
+  const dateFields = [
+    DbFields.PURCHASE_INVOICE_DATE,
+    DbFields.PURCHASE_EWB_DATE,
+  ];
+
+  for (const mapping of mappings) {
+    // Check non-split columns mapped to date fields
+    if (mapping.mappedTo && dateFields.includes(mapping.mappedTo as DbFields)) {
+      if (!mapping.dateFormat) {
+        throw ValidationError(
+          `Date format required for column "${mapping.excelHeader}" mapped to ${mapping.mappedTo}`,
+        );
+      }
+    }
+
+    // Check split column parts mapped to date fields
+    for (const part of mapping.parts) {
+      if (dateFields.includes(part.mapTo as DbFields) && !part.dateFormat) {
+        throw ValidationError(
+          `Date format required for part ${part.index} in column "${mapping.excelHeader}" mapped to ${part.mapTo}`,
+        );
+      }
+    }
   }
 }
 

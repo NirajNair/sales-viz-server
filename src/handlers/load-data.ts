@@ -9,40 +9,12 @@ import {
   buildLoadDataResponse,
   validateLoadDataRequest,
 } from "../dto/load-data.dto";
+import { DbFields } from "../enums/db-fields.enum";
 import { ValidationError } from "../lib/errors";
 import { parseExcel } from "../lib/excel";
-import { getBatchMappingSuggestions } from "../lib/llm";
+import { getBatchMappingSuggestions } from "../lib/llm/mapping";
 import { loggerWithContext } from "../lib/logger";
 import { loadDataFromExcel } from "../services/data-loader.service";
-
-function getDbSchemaColumns(): string[] {
-  return [
-    // purchase_records - data columns only (no IDs, no timestamps)
-    "purchase_records.invoice_no",
-    "purchase_records.invoice_date",
-    "purchase_records.state",
-    "purchase_records.ewb_no",
-    "purchase_records.ewb_date",
-    "purchase_records.assess_val",
-    "purchase_records.tax_val",
-
-    // seller entity columns
-    "seller_entity.name",
-    "seller_entity.gstin",
-    "seller_entity.place",
-    "seller_entity.pin",
-
-    // buyer entity columns
-    "buyer_entity.name",
-    "buyer_entity.gstin",
-    "buyer_entity.place",
-    "buyer_entity.pin",
-
-    // hsn codes
-    "hsn_codes.code",
-    "hsn_codes.chemical_name",
-  ];
-}
 
 export type LoadDataDependencies = {
   parseExcel: typeof parseExcel;
@@ -82,14 +54,12 @@ export function createHandleGetMappings(deps: LoadDataDependencies) {
       );
     }
 
-    const dbColumns = getDbSchemaColumns();
-
     const batchResult = await deps.getBatchMappingSuggestions(
       columns.map((col) => ({
         header: col.header,
         sampleValue: col.sampleValue,
       })),
-      dbColumns,
+      Object.values(DbFields) as string[],
     );
 
     return buildGetMappingsResponse(columns, batchResult);
