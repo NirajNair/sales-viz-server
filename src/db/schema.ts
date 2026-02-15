@@ -1,48 +1,47 @@
 import { relations } from "drizzle-orm";
 import {
   boolean,
-  date,
   numeric,
   pgTable,
   text,
   timestamp,
-  uuid,
+  uuid
 } from "drizzle-orm/pg-core";
 
-export const entities = pgTable("entities", {
+export const entities = pgTable("Entities", {
   id: uuid("id").defaultRandom().primaryKey(),
   gstin: text("gstin").notNull().unique(),
   name: text("name").notNull(),
   place: text("place"),
   pin: text("pin"),
-  isBuyer: boolean("is_buyer").notNull().default(false),
-  isSeller: boolean("is_seller").notNull().default(false),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  isBuyer: boolean("isBuyer").notNull().default(false),
+  isSeller: boolean("isSeller").notNull().default(false),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
-export const hsnCodes = pgTable("hsn_codes", {
+export const hsnCodes = pgTable("HSNCodes", {
   id: uuid("id").defaultRandom().primaryKey(),
   code: text("code").notNull(),
   chemicalName: text("chemical_name").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
-export const purchaseRecords = pgTable("purchase_records", {
+export const purchaseRecords = pgTable("PurchaseRecords", {
   id: uuid("id").defaultRandom().primaryKey(),
-  supplierEntityId: uuid("supplier_entity_id").references(() => entities.id),
-  buyerEntityId: uuid("buyer_entity_id").references(() => entities.id),
-  hsnCodeId: uuid("hsn_code_id").references(() => hsnCodes.id),
-  invoiceNo: text("invoice_no"),
-  invoiceDate: date("invoice_date"),
+  supplierEntityId: uuid("supplierEntityId").references(() => entities.id),
+  buyerEntityId: uuid("buyerEntityId").references(() => entities.id),
+  hsnCodeId: uuid("hsnCodeId").references(() => hsnCodes.id),
+  invoiceNo: text("invoiceNo"),
+  invoiceDate: timestamp("invoiceDate"),
   state: text("state"),
-  ewbNo: text("ewb_no"),
-  ewbDate: date("ewb_date"),
-  assessVal: numeric("assess_val"),
-  taxVal: numeric("tax_val"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  ewbNo: text("ewbNo"),
+  ewbDate: timestamp("ewbDate"),
+  assessVal: numeric("assessVal"),
+  taxVal: numeric("taxVal"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 export const entitiesRelations = relations(entities, ({ many }) => ({

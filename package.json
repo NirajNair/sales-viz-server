@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@elysiajs/cors": "^1.4.1",
+    "date-fns": "latest",
     "drizzle-orm": "latest",
     "elysia": "latest",
     "fflate": "^0.8.2",
