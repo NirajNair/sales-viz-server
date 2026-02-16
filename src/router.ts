@@ -2,12 +2,15 @@ import { Elysia } from "elysia";
 import { handleHealth, handleReady } from "./handlers/health";
 import { handleGetMappings, handleLoadData } from "./handlers/load-data";
 import { handleLogsExport } from "./handlers/logs";
-import { handleRevertUpload } from "./handlers/upload";
+import { handleGetUploads, handleRevertUpload } from "./handlers/upload";
 
 export const router = new Elysia()
   .get("/health", handleHealth)
   .get("/ready", handleReady)
+  .post("/api/logs/export", handleLogsExport)
+
   .post("/api/load-data/get-mappings", handleGetMappings)
   .post("/api/load-data", handleLoadData)
-  .post("/api/logs/export", handleLogsExport)
+
+  .get("/api/uploads", handleGetUploads)
   .post("/api/uploads/:uploadId/revert", handleRevertUpload);

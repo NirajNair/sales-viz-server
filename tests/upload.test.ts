@@ -1,12 +1,17 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import type { Context } from "elysia";
-import { createHandleRevertUpload } from "../src/handlers/upload";
+import {
+  createHandleGetUploads,
+  createHandleRevertUpload,
+} from "../src/handlers/upload";
 import type { AppError } from "../src/lib/errors";
+
+const mockLogger = {
+  error: mock(() => {}),
+  info: mock(() => {}),
+};
+
 describe("Revert Upload Handler", () => {
-  const mockLogger = {
-    error: mock(() => {}),
-    info: mock(() => {}),
-  };
   let mockDb: any;
   let handleRevertUpload: ReturnType<typeof createHandleRevertUpload>;
   beforeEach(() => {
@@ -254,6 +259,192 @@ describe("Revert Upload Handler", () => {
         expect(appError.statusCode).toBe(400);
         expect(appError.code).toBe("VALIDATION_ERROR");
       }
+    });
+  });
+});
+
+describe("Get Uploads Handler", () => {
+    let mockDb: any;
+    let handleGetUploads: ReturnType<typeof createHandleGetUploads>;
+
+    beforeEach(() => {
+      mockLogger.info.mockClear();
+      // Setup mock db for get uploads - needs select().from().orderBy() chain
+      mockDb = {
+        select: mock(() => mockDb),
+        from: mock(() => mockDb),
+        orderBy: mock(() => Promise.resolve([])),
+      };
+      handleGetUploads = createHandleGetUploads({
+        db: mockDb,
+        loggerWithContext: mockLogger,
+      });
+    });
+
+  describe("Success Cases", () => {
+    test("should successfully return all uploads sorted by createdAt DESC", async () => {
+      const mockUploads = [
+        {
+          uploadId: "550e8400-e29b-41d4-a716-446655440003",
+          fileName: "latest.xlsx",
+          fileSize: 2048,
+          reverted: false,
+          createdAt: new Date("2026-02-17T12:00:00Z"),
+        },
+        {
+          uploadId: "550e8400-e29b-41d4-a716-446655440002",
+          fileName: "middle.xlsx",
+          fileSize: 1024,
+          reverted: true,
+          createdAt: new Date("2026-02-16T10:00:00Z"),
+        },
+        {
+          uploadId: "550e8400-e29b-41d4-a716-446655440001",
+          fileName: "oldest.xlsx",
+          fileSize: 512,
+          reverted: false,
+          createdAt: new Date("2026-02-15T08:00:00Z"),
+        },
+      ];
+
+      mockDb.orderBy = mock(() => Promise.resolve(mockUploads));
+
+      const result = await handleGetUploads();
+
+      expect(result.uploads).toHaveLength(3);
+      expect(result.uploads[0].fileName).toBe("latest.xlsx");
+      expect(result.uploads[2].fileName).toBe("oldest.xlsx");
+      expect(mockDb.select).toHaveBeenCalled();
+      expect(mockDb.from).toHaveBeenCalled();
+      expect(mockDb.orderBy).toHaveBeenCalled();
+    });
+
+    test("should return empty array when no uploads exist", async () => {
+      mockDb.orderBy = mock(() => Promise.resolve([]));
+
+      const result = await handleGetUploads();
+
+      expect(result.uploads).toEqual([]);
+      expect(result.uploads).toHaveLength(0);
+    });
+
+    test("should include all required fields in response", async () => {
+      const mockUploads = [
+        {
+          uploadId: "550e8400-e29b-41d4-a716-446655440000",
+          fileName: "test.xlsx",
+          fileSize: 1024,
+          reverted: false,
+          createdAt: new Date("2026-02-17T10:30:00Z"),
+        },
+      ];
+
+      mockDb.orderBy = mock(() => Promise.resolve(mockUploads));
+
+      const result = await handleGetUploads();
+
+      expect(result.uploads).toHaveLength(1);
+      const upload = result.uploads[0];
+      expect(upload.uploadId).toBe("550e8400-e29b-41d4-a716-446655440000");
+      expect(upload.fileName).toBe("test.xlsx");
+      expect(upload.fileSize).toBe(1024);
+      expect(upload.reverted).toBe(false);
+      expect(upload.createdAt).toBeInstanceOf(Date);
+      expect(upload.createdAt).toEqual(new Date("2026-02-17T10:30:00Z"));
+    });
+
+    test("should include both reverted and non-reverted uploads", async () => {
+      const mockUploads = [
+        {
+          uploadId: "550e8400-e29b-41d4-a716-446655440001",
+          fileName: "active.xlsx",
+          fileSize: 1024,
+          reverted: false,
+          createdAt: new Date("2026-02-17T10:00:00Z"),
+        },
+        {
+          uploadId: "550e8400-e29b-41d4-a716-446655440002",
+          fileName: "reverted.xlsx",
+          fileSize: 2048,
+          reverted: true,
+          createdAt: new Date("2026-02-16T09:00:00Z"),
+        },
+      ];
+
+      mockDb.orderBy = mock(() => Promise.resolve(mockUploads));
+
+      const result = await handleGetUploads();
+
+      expect(result.uploads).toHaveLength(2);
+      expect(result.uploads.some((u) => u.reverted === false)).toBe(true);
+      expect(result.uploads.some((u) => u.reverted === true)).toBe(true);
+    });
+  });
+
+  describe("Database Errors", () => {
+    test("should throw error when database query fails", async () => {
+      mockDb.orderBy = mock(() =>
+        Promise.reject(new Error("Database connection failed")),
+      );
+
+      await expect(handleGetUploads()).rejects.toThrow(
+        "Database connection failed",
+      );
+    });
+
+    test("should throw error when select fails", async () => {
+      mockDb.select = mock(() => {
+        throw new Error("Query failed");
+      });
+
+      await expect(handleGetUploads()).rejects.toThrow("Query failed");
+    });
+  });
+
+  describe("Edge Cases", () => {
+    test("should handle single upload correctly", async () => {
+      const mockUploads = [
+        {
+          uploadId: "550e8400-e29b-41d4-a716-446655440000",
+          fileName: "single.xlsx",
+          fileSize: 1024,
+          reverted: false,
+          createdAt: new Date("2026-02-17T10:30:00Z"),
+        },
+      ];
+
+      mockDb.orderBy = mock(() => Promise.resolve(mockUploads));
+
+      const result = await handleGetUploads();
+
+      expect(result.uploads).toHaveLength(1);
+      expect(result.uploads[0].fileName).toBe("single.xlsx");
+    });
+
+    test("should handle uploads with different file sizes", async () => {
+      const mockUploads = [
+        {
+          uploadId: "550e8400-e29b-41d4-a716-446655440001",
+          fileName: "small.xlsx",
+          fileSize: 100,
+          reverted: false,
+          createdAt: new Date("2026-02-17T12:00:00Z"),
+        },
+        {
+          uploadId: "550e8400-e29b-41d4-a716-446655440002",
+          fileName: "large.xlsx",
+          fileSize: 10485760,
+          reverted: false,
+          createdAt: new Date("2026-02-16T10:00:00Z"),
+        },
+      ];
+
+      mockDb.orderBy = mock(() => Promise.resolve(mockUploads));
+
+      const result = await handleGetUploads();
+
+      expect(result.uploads[0].fileSize).toBe(100);
+      expect(result.uploads[1].fileSize).toBe(10485760);
     });
   });
 });
