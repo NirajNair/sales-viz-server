@@ -9,9 +9,10 @@ import {
 } from "bun:test";
 
 describe("LLM Module", () => {
-  let getMappingSuggestion: typeof import("../src/lib/llm").getMappingSuggestion;
-  let getBatchMappingSuggestions: typeof import("../src/lib/llm").getBatchMappingSuggestions;
+  let getMappingSuggestion: typeof import("../src/lib/llm/mapping").getMappingSuggestion;
+  let getBatchMappingSuggestions: typeof import("../src/lib/llm/mapping").getBatchMappingSuggestions;
   let llmModule: typeof import("../src/lib/llm");
+  let mappingModule: typeof import("../src/lib/llm/mapping");
 
   let mockOpenAIResponse: any = null;
   let mockOpenAIError: any = null;
@@ -44,22 +45,23 @@ describe("LLM Module", () => {
       warn: mock(() => {}),
       error: mock(() => {}),
     };
-    
+
     mock.module("../src/lib/logger", () => ({
       logger: mockLogger,
       loggerWithContext: mockLogger,
     }));
 
-    // Import llm module after mocking config
+    // Import llm module after mocking config (for openaiClient)
     llmModule = await import("../src/lib/llm");
-    getMappingSuggestion = llmModule.getMappingSuggestion;
-    getBatchMappingSuggestions = llmModule.getBatchMappingSuggestions;
+    mappingModule = await import("../src/lib/llm/mapping");
+    getMappingSuggestion = mappingModule.getMappingSuggestion;
+    getBatchMappingSuggestions = mappingModule.getBatchMappingSuggestions;
   });
 
   beforeEach(() => {
     mockOpenAIResponse = null;
     mockOpenAIError = null;
-    
+
     // Inject mock OpenAI client
     const mockOpenAI = {
       chat: {
@@ -86,22 +88,24 @@ describe("LLM Module", () => {
   describe("getMappingSuggestion", () => {
     test("should return valid suggestion for successful response", async () => {
       mockOpenAIResponse = {
-        choices: [{
-          message: {
-            content: JSON.stringify({
-              should_split: false,
-              delimiter: null,
-              map_to: "purchaseRecords.id",
-              parts: [],
-            }),
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                should_split: false,
+                delimiter: null,
+                map_to: "purchaseRecords.id",
+                parts: [],
+              }),
+            },
           },
-        }],
+        ],
       };
 
-      const result = await getMappingSuggestion(
-        { header: "ID", sampleValue: "123" },
-        ["purchaseRecords.id", "purchaseRecords.name"],
-      );
+      const result = await getMappingSuggestion({
+        header: "ID",
+        sampleValue: "123",
+      });
 
       expect(result.should_split).toBe(false);
       expect(result.delimiter).toBeNull();
@@ -110,25 +114,27 @@ describe("LLM Module", () => {
 
     test("should return suggestion with parts when splitting", async () => {
       mockOpenAIResponse = {
-        choices: [{
-          message: {
-            content: JSON.stringify({
-              should_split: true,
-              delimiter: "/",
-              map_to: null,
-              parts: [
-                { index: 0, map_to: "purchaseRecords.col1" },
-                { index: 1, map_to: "purchaseRecords.col2" },
-              ],
-            }),
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                should_split: true,
+                delimiter: "/",
+                map_to: null,
+                parts: [
+                  { index: 0, map_to: "purchaseRecords.col1" },
+                  { index: 1, map_to: "purchaseRecords.col2" },
+                ],
+              }),
+            },
           },
-        }],
+        ],
       };
 
-      const result = await getMappingSuggestion(
-        { header: "Combined/Field", sampleValue: "value1/value2" },
-        ["purchaseRecords.col1", "purchaseRecords.col2"],
-      );
+      const result = await getMappingSuggestion({
+        header: "Combined/Field",
+        sampleValue: "value1/value2",
+      });
 
       expect(result.should_split).toBe(true);
       expect(result.delimiter).toBe("/");
@@ -140,10 +146,7 @@ describe("LLM Module", () => {
       (mockOpenAIError as any).code = "ECONNABORTED";
 
       await expect(
-        getMappingSuggestion(
-          { header: "Test", sampleValue: "value" },
-          ["col1"],
-        ),
+        getMappingSuggestion({ header: "Test", sampleValue: "value" }),
       ).rejects.toThrow("LLM request timed out");
     });
 
@@ -152,10 +155,7 @@ describe("LLM Module", () => {
       (mockOpenAIError as any).code = "ECONNREFUSED";
 
       await expect(
-        getMappingSuggestion(
-          { header: "Test", sampleValue: "value" },
-          ["col1"],
-        ),
+        getMappingSuggestion({ header: "Test", sampleValue: "value" }),
       ).rejects.toThrow("Failed to reach LLM endpoint");
     });
 
@@ -165,49 +165,44 @@ describe("LLM Module", () => {
       };
 
       await expect(
-        getMappingSuggestion(
-          { header: "Test", sampleValue: "value" },
-          ["col1"],
-        ),
+        getMappingSuggestion({ header: "Test", sampleValue: "value" }),
       ).rejects.toThrow("LLM response did not include content text");
     });
 
     test("should throw LLM_BAD_RESPONSE error on invalid JSON", async () => {
       mockOpenAIResponse = {
-        choices: [{
-          message: {
-            content: "not valid json",
+        choices: [
+          {
+            message: {
+              content: "not valid json",
+            },
           },
-        }],
+        ],
       };
 
       await expect(
-        getMappingSuggestion(
-          { header: "Test", sampleValue: "value" },
-          ["col1"],
-        ),
+        getMappingSuggestion({ header: "Test", sampleValue: "value" }),
       ).rejects.toThrow("LLM returned malformed JSON");
     });
 
     test("should throw LLM_BAD_RESPONSE error on schema mismatch", async () => {
       mockOpenAIResponse = {
-        choices: [{
-          message: {
-            content: JSON.stringify({
-              should_split: "invalid",
-              delimiter: null,
-              map_to: null,
-              parts: [],
-            }),
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                should_split: "invalid",
+                delimiter: null,
+                map_to: null,
+                parts: [],
+              }),
+            },
           },
-        }],
+        ],
       };
 
       await expect(
-        getMappingSuggestion(
-          { header: "Test", sampleValue: "value" },
-          ["col1"],
-        ),
+        getMappingSuggestion({ header: "Test", sampleValue: "value" }),
       ).rejects.toThrow("LLM JSON did not match schema");
     });
   });
@@ -237,20 +232,19 @@ describe("LLM Module", () => {
       };
 
       mockOpenAIResponse = {
-        choices: [{
-          message: {
-            content: JSON.stringify(batchResponse),
+        choices: [
+          {
+            message: {
+              content: JSON.stringify(batchResponse),
+            },
           },
-        }],
+        ],
       };
 
-      const result = await getBatchMappingSuggestions(
-        [
-          { header: "ID", sampleValue: "123" },
-          { header: "Name/Type", sampleValue: "Product/A" },
-        ],
-        ["purchaseRecords.id", "purchaseRecords.name", "purchaseRecords.type"],
-      );
+      const result = await getBatchMappingSuggestions([
+        { header: "ID", sampleValue: "123" },
+        { header: "Name/Type", sampleValue: "Product/A" },
+      ]);
 
       expect(result.columns).toHaveLength(2);
       expect(result.columns[0].header).toBe("ID");
@@ -260,18 +254,17 @@ describe("LLM Module", () => {
 
     test("should throw error on invalid batch response structure", async () => {
       mockOpenAIResponse = {
-        choices: [{
-          message: {
-            content: JSON.stringify({ invalid: "structure" }),
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({ invalid: "structure" }),
+            },
           },
-        }],
+        ],
       };
 
       await expect(
-        getBatchMappingSuggestions(
-          [{ header: "Test", sampleValue: "value" }],
-          ["col1"],
-        ),
+        getBatchMappingSuggestions([{ header: "Test", sampleValue: "value" }]),
       ).rejects.toThrow("LLM JSON did not match schema");
     });
 
@@ -280,12 +273,8 @@ describe("LLM Module", () => {
       (mockOpenAIError as any).code = "ETIMEDOUT";
 
       await expect(
-        getBatchMappingSuggestions(
-          [{ header: "Test", sampleValue: "value" }],
-          ["col1"],
-        ),
+        getBatchMappingSuggestions([{ header: "Test", sampleValue: "value" }]),
       ).rejects.toThrow("LLM request timed out");
     });
   });
-
 });

@@ -13,16 +13,13 @@ import {
   type LlmSuggestion,
 } from "./types";
 
-function buildUserPrompt(sample: ColumnSample, dbColumns: string[]) {
-  const dbList = dbColumns.join(", ");
+function buildUserPrompt(sample: ColumnSample) {
   return `Input:
     Column Header: "${sample.header}"
-    Sample Value: "${sample.sampleValue}"
-    Available DB Columns: ${dbList}`;
+    Sample Value: "${sample.sampleValue}"`;
 }
 
-function buildBatchUserPrompt(samples: ColumnSample[], dbColumns: string[]) {
-  const dbList = dbColumns.join(", ");
+function buildBatchUserPrompt(samples: ColumnSample[]) {
   const columnsJson = JSON.stringify(
     samples.map((s) => ({
       header: s.header,
@@ -32,17 +29,13 @@ function buildBatchUserPrompt(samples: ColumnSample[], dbColumns: string[]) {
     2,
   );
 
-  return `Input Columns:
-    ${columnsJson}
-
-    Available DB Columns: ${dbList}`;
+  return `Input Columns: ${columnsJson}`;
 }
 
 export async function getMappingSuggestion(
   sample: ColumnSample,
-  dbColumns: string[],
 ): Promise<LlmSuggestion> {
-  const userPrompt = buildUserPrompt(sample, dbColumns);
+  const userPrompt = buildUserPrompt(sample);
   loggerWithContext.info({ userPrompt }, "User prompt for mapping suggestion");
   const content = await requestCompletion(
     SINGLE_MAPPING_SYSTEM_PROMPT,
@@ -67,9 +60,8 @@ export async function getMappingSuggestion(
 
 export async function getBatchMappingSuggestions(
   samples: ColumnSample[],
-  dbColumns: string[],
 ): Promise<LlmBatchSuggestion> {
-  const userPrompt = buildBatchUserPrompt(samples, dbColumns);
+  const userPrompt = buildBatchUserPrompt(samples);
   loggerWithContext.info(
     { userPrompt },
     "User prompt for batch mapping suggestions",

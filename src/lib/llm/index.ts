@@ -29,7 +29,7 @@ export function extractContent(payload: unknown): string {
 
   const record = payload as Record<string, unknown>;
   if (typeof record.content === "string") {
-    return removeThink(record.content);
+    return cleanLlmResponse(record.content);
   }
 
   const choices = record.choices;
@@ -37,7 +37,7 @@ export function extractContent(payload: unknown): string {
     const first = choices[0] as Record<string, unknown>;
     const message = first?.message as Record<string, unknown> | undefined;
     if (message && typeof message.content === "string") {
-      return removeThink(message.content);
+      return cleanLlmResponse(message.content);
     }
     if (typeof first?.text === "string") {
       return first.text;
@@ -47,8 +47,11 @@ export function extractContent(payload: unknown): string {
   throw BadGatewayError("LLM response did not include content text");
 }
 
-export function removeThink(text: string): string {
-  return text.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+export function cleanLlmResponse(text: string): string {
+  return text
+    .replace(/<think>[\s\S]*?<\/think>/g, "")
+    .replace(/<\|[^|]+\|>/g, "")
+    .trim();
 }
 
 export async function requestCompletion(

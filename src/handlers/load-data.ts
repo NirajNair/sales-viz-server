@@ -9,7 +9,6 @@ import {
   buildLoadDataResponse,
   validateLoadDataRequest,
 } from "../dto/load-data.dto";
-import { DbFields } from "../enums/db-fields.enum";
 import { ValidationError } from "../lib/errors";
 import { parseExcel } from "../lib/excel";
 import { getBatchMappingSuggestions } from "../lib/llm/mapping";
@@ -59,7 +58,6 @@ export function createHandleGetMappings(deps: LoadDataDependencies) {
         header: col.header,
         sampleValue: col.sampleValue,
       })),
-      Object.values(DbFields) as string[],
     );
 
     return buildGetMappingsResponse(columns, batchResult);
