@@ -8,6 +8,13 @@
       "when": 1771148048152,
       "tag": "0000_premium_silver_fox",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1771252592226,
+      "tag": "0001_concerned_outlaw_kid",
+      "breakpoints": true
     }
   ]
 }

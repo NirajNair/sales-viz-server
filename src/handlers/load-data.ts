@@ -1,4 +1,6 @@
 import type { Context } from "elysia";
+import { db } from "../db";
+import { uploads } from "../db/schema";
 import type { GetMappingsResponseDto } from "../dto/get-mappings.dto";
 import {
   buildGetMappingsResponse,
@@ -109,7 +111,21 @@ export async function handleLoadData({
   });
 
   try {
-    const count = await loadDataFromExcel(validatedFile, updatedMappings);
+    // Create upload record first
+    const [uploadRecord] = await db
+      .insert(uploads)
+      .values({
+        fileName: validatedFile.name,
+        fileSize: validatedFile.size,
+        fileType: validatedFile.type,
+      })
+      .returning();
+
+    const count = await loadDataFromExcel(
+      validatedFile,
+      updatedMappings,
+      uploadRecord.id,
+    );
     return buildLoadDataResponse(count);
   } catch (error) {
     loggerWithContext.error({ err: error }, "Failed to load data from Excel");

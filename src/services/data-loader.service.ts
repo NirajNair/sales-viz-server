@@ -34,6 +34,7 @@ interface ParsedRow {
 export async function loadDataFromExcel(
   file: File,
   mappings: Mapping[],
+  uploadId: string,
 ): Promise<number> {
   const buffer = await file.arrayBuffer();
   const workbook = XLSX.read(buffer, { type: "array" });
@@ -84,6 +85,7 @@ export async function loadDataFromExcel(
         place: parsedRow.sellerPlace,
         pin: parsedRow.sellerPin,
         isSeller: true,
+        uploadId,
       });
 
       // Upsert buyer entity
@@ -93,12 +95,14 @@ export async function loadDataFromExcel(
         place: parsedRow.buyerPlace,
         pin: parsedRow.buyerPin,
         isBuyer: true,
+        uploadId,
       });
 
       // Always create new HSN record
       const [hsn] = await tx
         .insert(hsnCodes)
         .values({
+          uploadId,
           code: parsedRow.hsnCode,
           chemicalName: parsedRow.hsnChemicalName ?? "",
         })
@@ -106,6 +110,7 @@ export async function loadDataFromExcel(
 
       // Insert purchase record
       await tx.insert(purchaseRecords).values({
+        uploadId,
         supplierEntityId: seller.id,
         buyerEntityId: buyer.id,
         hsnCodeId: hsn.id,
@@ -288,6 +293,7 @@ async function upsertEntity(
     pin?: string;
     isSeller?: boolean;
     isBuyer?: boolean;
+    uploadId: string;
   },
 ) {
   // Check if entity exists
@@ -316,6 +322,7 @@ async function upsertEntity(
     const [created] = await tx
       .insert(entities)
       .values({
+        uploadId: entity.uploadId,
         gstin: entity.gstin,
         name: entity.name,
         place: entity.place,
