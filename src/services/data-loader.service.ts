@@ -7,7 +7,7 @@ import { DbFields } from "../enums/db-fields.enum";
 import { parseDateWithFormat } from "../lib/date-parser";
 import { ValidationError } from "../lib/errors";
 
-interface ParsedRow {
+export interface ParsedRow {
   sellerGstin: string;
   sellerName: string;
   sellerPlace?: string;
@@ -28,14 +28,13 @@ interface ParsedRow {
 }
 
 /**
- * Loads data from Excel file into database based on provided mappings.
- * Uses transaction to ensure all-or-nothing behavior.
+ * Parses Excel file to ParsedRow objects based on provided mappings.
+ * Does not interact with database - pure parsing logic.
  */
-export async function loadDataFromExcel(
+export async function parseExcelToRows(
   file: File,
   mappings: Mapping[],
-  uploadId: string,
-): Promise<number> {
+): Promise<ParsedRow[]> {
   const buffer = await file.arrayBuffer();
   const workbook = XLSX.read(buffer, { type: "array" });
 
@@ -72,6 +71,20 @@ export async function loadDataFromExcel(
       );
     }
   }
+
+  return parsedRows;
+}
+
+/**
+ * Loads data from Excel file into database based on provided mappings.
+ * Uses transaction to ensure all-or-nothing behavior.
+ */
+export async function loadDataFromExcel(
+  file: File,
+  mappings: Mapping[],
+  uploadId: string,
+): Promise<number> {
+  const parsedRows = await parseExcelToRows(file, mappings);
 
   // Insert all data in a transaction
   return await db.transaction(async (tx: any) => {
@@ -137,16 +150,13 @@ function parseRow(row: unknown[], mappings: Mapping[]): ParsedRow {
   const result: Partial<ParsedRow> = {};
 
   for (const mapping of mappings) {
-    console.log("mapping", mapping);
     const cellValue = String(row[mapping.excelColumnIndex] ?? "").trim();
 
     if (mapping.shouldSplit && mapping.delimiter) {
       const parts = cellValue.split(mapping.delimiter);
-      console.log("parts", parts);
 
       for (const partMapping of mapping.parts) {
         const partValue = parts[partMapping.index]?.trim() ?? "";
-        console.log("partValue", partMapping.mapTo, partValue);
         applyMapping(
           result,
           partMapping.mapTo,
@@ -155,7 +165,6 @@ function parseRow(row: unknown[], mappings: Mapping[]): ParsedRow {
         );
       }
     } else if (mapping.mappedTo) {
-      console.log("mapping.mappedTo", mapping.mappedTo, cellValue);
       applyMapping(result, mapping.mappedTo, cellValue, mapping.dateFormat);
     }
   }

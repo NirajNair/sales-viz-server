@@ -72,66 +72,86 @@ export const handleGetMappings = createHandleGetMappings({
   loggerWithContext,
 });
 
-export async function handleLoadData({
-  request,
-}: Context): Promise<LoadDataResponseDto> {
-  let formData: FormData;
-  try {
-    formData = await request.formData();
-  } catch (error) {
-    loggerWithContext.error({ err: error }, "Unable to parse upload form data");
-    throw ValidationError(
-      error instanceof Error
-        ? error.message
-        : "Unable to parse upload form data",
-    );
-  }
+export type LoadDataHandlerDependencies = {
+  db: typeof db;
+  loadDataFromExcel: typeof loadDataFromExcel;
+  loggerWithContext: Pick<typeof loggerWithContext, "error">;
+};
 
-  const file = formData.get("file");
-  const mappingsJson = formData.get("mappings");
-
-  if (!file || !(file instanceof File)) {
-    throw ValidationError("No file provided");
-  }
-
-  if (!mappingsJson || typeof mappingsJson !== "string") {
-    throw ValidationError("No mappings provided");
-  }
-
-  const { file: validatedFile, mappings } = validateLoadDataRequest(
-    file,
-    mappingsJson,
-  );
-
-  const updatedMappings = mappings.filter((mapping) => {
-    return (
-      (!mapping.parts.length && mapping.mappedTo !== null) ||
-      mapping.parts.some((part) => part.mapTo !== null)
-    );
-  });
-
-  try {
-    // Create upload record first
-    const [uploadRecord] = await db
-      .insert(uploads)
-      .values({
-        fileName: validatedFile.name,
-        fileSize: validatedFile.size,
-        fileType: validatedFile.type,
-      })
-      .returning();
-
-    const count = await loadDataFromExcel(
-      validatedFile,
-      updatedMappings,
-      uploadRecord.id,
-    );
-    return buildLoadDataResponse(count);
-  } catch (error) {
-    loggerWithContext.error({ err: error }, "Failed to load data from Excel");
-    if (error instanceof Error && error.message.startsWith("Missing ")) {
-      throw ValidationError(error.message);
+export function createHandleLoadData(deps: LoadDataHandlerDependencies) {
+  return async function handleLoadData({
+    request,
+  }: Context): Promise<LoadDataResponseDto> {
+    let formData: FormData;
+    try {
+      formData = await request.formData();
+    } catch (error) {
+      deps.loggerWithContext.error(
+        { err: error },
+        "Unable to parse upload form data",
+      );
+      throw ValidationError(
+        error instanceof Error
+          ? error.message
+          : "Unable to parse upload form data",
+      );
     }
-    throw error;
-  }
+
+    const file = formData.get("file");
+    const mappingsJson = formData.get("mappings");
+
+    if (!file || !(file instanceof File)) {
+      throw ValidationError("No file provided");
+    }
+
+    if (!mappingsJson || typeof mappingsJson !== "string") {
+      throw ValidationError("No mappings provided");
+    }
+
+    const { file: validatedFile, mappings } = validateLoadDataRequest(
+      file,
+      mappingsJson,
+    );
+
+    const updatedMappings = mappings.filter((mapping) => {
+      return (
+        (!mapping.parts.length && mapping.mappedTo !== null) ||
+        mapping.parts.some((part) => part.mapTo !== null)
+      );
+    });
+
+    try {
+      // Create upload record first
+      const [uploadRecord] = await deps.db
+        .insert(uploads)
+        .values({
+          fileName: validatedFile.name,
+          fileSize: validatedFile.size,
+          fileType: validatedFile.type,
+        })
+        .returning();
+
+      const count = await deps.loadDataFromExcel(
+        validatedFile,
+        updatedMappings,
+        uploadRecord.id,
+      );
+      return buildLoadDataResponse(count);
+    } catch (error) {
+      deps.loggerWithContext.error(
+        { err: error },
+        "Failed to load data from Excel",
+      );
+      if (error instanceof Error && error.message.startsWith("Missing ")) {
+        throw ValidationError(error.message);
+      }
+      throw error;
+    }
+  };
 }
+
+export const handleLoadData = createHandleLoadData({
+  db,
+  loadDataFromExcel,
+  loggerWithContext,
+});
