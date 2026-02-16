@@ -27,9 +27,6 @@ export const entities = pgTable("Entities", {
   pin: text("pin"),
   isBuyer: boolean("isBuyer").notNull().default(false),
   isSeller: boolean("isSeller").notNull().default(false),
-  uploadId: uuid("uploadId")
-    .references(() => uploads.id)
-    .notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
@@ -38,18 +35,12 @@ export const hsnCodes = pgTable("HSNCodes", {
   id: uuid("id").defaultRandom().primaryKey(),
   code: text("code").notNull(),
   chemicalName: text("chemical_name").notNull(),
-  uploadId: uuid("uploadId")
-    .references(() => uploads.id)
-    .notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 export const purchaseRecords = pgTable("PurchaseRecords", {
   id: uuid("id").defaultRandom().primaryKey(),
-  uploadId: uuid("uploadId")
-    .references(() => uploads.id)
-    .notNull(),
   supplierEntityId: uuid("supplierEntityId").references(() => entities.id),
   buyerEntityId: uuid("buyerEntityId").references(() => entities.id),
   hsnCodeId: uuid("hsnCodeId").references(() => hsnCodes.id),
@@ -60,6 +51,9 @@ export const purchaseRecords = pgTable("PurchaseRecords", {
   ewbDate: timestamp("ewbDate"),
   assessVal: numeric("assessVal"),
   taxVal: numeric("taxVal"),
+  uploadId: uuid("uploadId")
+    .references(() => uploads.id)
+    .notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
@@ -70,30 +64,18 @@ export const uploadsRelations = relations(uploads, ({ many }) => ({
   purchaseRecords: many(purchaseRecords),
 }));
 
-export const entitiesRelations = relations(entities, ({ one, many }) => ({
-  upload: one(uploads, {
-    fields: [entities.uploadId],
-    references: [uploads.id],
-  }),
+export const entitiesRelations = relations(entities, ({ many }) => ({
   supplierPurchases: many(purchaseRecords, { relationName: "supplierEntity" }),
   buyerPurchases: many(purchaseRecords, { relationName: "buyerEntity" }),
 }));
 
-export const hsnCodesRelations = relations(hsnCodes, ({ one, many }) => ({
-  upload: one(uploads, {
-    fields: [hsnCodes.uploadId],
-    references: [uploads.id],
-  }),
+export const hsnCodesRelations = relations(hsnCodes, ({ many }) => ({
   purchases: many(purchaseRecords),
 }));
 
 export const purchaseRecordsRelations = relations(
   purchaseRecords,
   ({ one }) => ({
-    upload: one(uploads, {
-      fields: [purchaseRecords.uploadId],
-      references: [uploads.id],
-    }),
     supplierEntity: one(entities, {
       fields: [purchaseRecords.supplierEntityId],
       references: [entities.id],
@@ -107,6 +89,10 @@ export const purchaseRecordsRelations = relations(
     hsnCode: one(hsnCodes, {
       fields: [purchaseRecords.hsnCodeId],
       references: [hsnCodes.id],
+    }),
+    upload: one(uploads, {
+      fields: [purchaseRecords.uploadId],
+      references: [uploads.id],
     }),
   }),
 );

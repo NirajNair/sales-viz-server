@@ -1,5 +1,5 @@
 {
-  "id": "83e02a0d-75e2-4c2e-b396-005f0392b73f",
+  "id": "f31327f6-5f91-4dd2-80c1-d23ee5156271",
   "prevId": "240426ee-c243-442a-9235-fa2b6ab25478",
   "version": "7",
   "dialect": "postgresql",
@@ -14,12 +14,6 @@
           "primaryKey": true,
           "notNull": true,
           "default": "gen_random_uuid()"
-        },
-        "uploadId": {
-          "name": "uploadId",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
         },
         "gstin": {
           "name": "gstin",
@@ -75,23 +69,17 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {
-        "Entities_uploadId_Uploads_id_fk": {
-          "name": "Entities_uploadId_Uploads_id_fk",
-          "tableFrom": "Entities",
-          "tableTo": "Uploads",
-          "columnsFrom": [
-            "uploadId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "Entities_gstin_unique": {
+          "name": "Entities_gstin_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "gstin"
+          ]
         }
       },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -106,12 +94,6 @@
           "primaryKey": true,
           "notNull": true,
           "default": "gen_random_uuid()"
-        },
-        "uploadId": {
-          "name": "uploadId",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
         },
         "code": {
           "name": "code",
@@ -141,21 +123,7 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {
-        "HSNCodes_uploadId_Uploads_id_fk": {
-          "name": "HSNCodes_uploadId_Uploads_id_fk",
-          "tableFrom": "HSNCodes",
-          "tableTo": "Uploads",
-          "columnsFrom": [
-            "uploadId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -172,12 +140,6 @@
           "primaryKey": true,
           "notNull": true,
           "default": "gen_random_uuid()"
-        },
-        "uploadId": {
-          "name": "uploadId",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
         },
         "supplierEntityId": {
           "name": "supplierEntityId",
@@ -239,6 +201,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "uploadId": {
+          "name": "uploadId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
         "createdAt": {
           "name": "createdAt",
           "type": "timestamp",
@@ -256,19 +224,6 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "PurchaseRecords_uploadId_Uploads_id_fk": {
-          "name": "PurchaseRecords_uploadId_Uploads_id_fk",
-          "tableFrom": "PurchaseRecords",
-          "tableTo": "Uploads",
-          "columnsFrom": [
-            "uploadId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
         "PurchaseRecords_supplierEntityId_Entities_id_fk": {
           "name": "PurchaseRecords_supplierEntityId_Entities_id_fk",
           "tableFrom": "PurchaseRecords",
@@ -301,6 +256,19 @@
           "tableTo": "HSNCodes",
           "columnsFrom": [
             "hsnCodeId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "PurchaseRecords_uploadId_Uploads_id_fk": {
+          "name": "PurchaseRecords_uploadId_Uploads_id_fk",
+          "tableFrom": "PurchaseRecords",
+          "tableTo": "Uploads",
+          "columnsFrom": [
+            "uploadId"
           ],
           "columnsTo": [
             "id"

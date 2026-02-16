@@ -7,7 +7,9 @@
     "dev": "bun run --watch src/index.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate && bun run db:triggers",
-    "db:triggers": "bun run src/db/apply-updated-at-triggers.ts"
+    "db:triggers": "bun run src/db/apply-updated-at-triggers.ts",
+    "db:drop-migration": "drizzle-kit drop",
+    "db:push": "drizzle-kit push"
   },
   "dependencies": {
     "@elysiajs/cors": "^1.4.1",
