@@ -44,8 +44,7 @@ export type Mapping = z.infer<typeof MappingSchema>;
 export type MappingPart = z.infer<typeof MappingPartSchema>;
 
 export interface LoadDataResponseDto {
-  message: string;
-  count: number;
+  recordsStoredCount: number;
 }
 
 /**
@@ -178,14 +177,4 @@ function validateDateFormats(mappings: Mapping[]): void {
       }
     }
   }
-}
-
-/**
- * Builds the success response for load data endpoint.
- */
-export function buildLoadDataResponse(count: number): LoadDataResponseDto {
-  return {
-    message: `Successfully loaded ${count} records`,
-    count,
-  };
 }

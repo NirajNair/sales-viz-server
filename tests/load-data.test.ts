@@ -599,8 +599,7 @@ describe("handleLoadData", () => {
       const result = await handleLoadData(ctx);
 
       expect(result).toEqual({
-        message: "Successfully loaded 5 records",
-        count: 5,
+        recordsStoredCount: 5,
       });
       expect(loadDataFromExcelMock).toHaveBeenCalledTimes(1);
       expect(mockDb.insert).toHaveBeenCalledTimes(1);

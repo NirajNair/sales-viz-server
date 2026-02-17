@@ -7,10 +7,7 @@ import {
   validateGetMappingsRequest,
 } from "../dto/get-mappings.dto";
 import type { LoadDataResponseDto } from "../dto/load-data.dto";
-import {
-  buildLoadDataResponse,
-  validateLoadDataRequest,
-} from "../dto/load-data.dto";
+import { validateLoadDataRequest } from "../dto/load-data.dto";
 import { ValidationError } from "../lib/errors";
 import { parseExcel } from "../lib/excel";
 import { getBatchMappingSuggestions } from "../lib/llm/mapping";
@@ -131,12 +128,12 @@ export function createHandleLoadData(deps: LoadDataHandlerDependencies) {
         })
         .returning();
 
-      const count = await deps.loadDataFromExcel(
+      const recordsStoredCount = await deps.loadDataFromExcel(
         validatedFile,
         updatedMappings,
         uploadRecord.id,
       );
-      return buildLoadDataResponse(count);
+      return { recordsStoredCount };
     } catch (error) {
       deps.loggerWithContext.error(
         { err: error },
