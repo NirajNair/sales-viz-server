@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@elysiajs/cors": "^1.4.1",
+    "@json2csv/plainjs": "^7.0.6",
     "date-fns": "latest",
     "drizzle-orm": "latest",
     "elysia": "latest",

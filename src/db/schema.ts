@@ -41,7 +41,7 @@ export const hsnCodes = pgTable("HSNCodes", {
 
 export const purchaseRecords = pgTable("PurchaseRecords", {
   id: uuid("id").defaultRandom().primaryKey(),
-  supplierEntityId: uuid("supplierEntityId").references(() => entities.id),
+  sellerEntityId: uuid("sellerEntityId").references(() => entities.id),
   buyerEntityId: uuid("buyerEntityId").references(() => entities.id),
   hsnCodeId: uuid("hsnCodeId").references(() => hsnCodes.id),
   invoiceNo: text("invoiceNo"),
@@ -65,7 +65,7 @@ export const uploadsRelations = relations(uploads, ({ many }) => ({
 }));
 
 export const entitiesRelations = relations(entities, ({ many }) => ({
-  supplierPurchases: many(purchaseRecords, { relationName: "supplierEntity" }),
+  sellerPurchases: many(purchaseRecords, { relationName: "sellerEntity" }),
   buyerPurchases: many(purchaseRecords, { relationName: "buyerEntity" }),
 }));
 
@@ -76,10 +76,10 @@ export const hsnCodesRelations = relations(hsnCodes, ({ many }) => ({
 export const purchaseRecordsRelations = relations(
   purchaseRecords,
   ({ one }) => ({
-    supplierEntity: one(entities, {
-      fields: [purchaseRecords.supplierEntityId],
+    sellerEntity: one(entities, {
+      fields: [purchaseRecords.sellerEntityId],
       references: [entities.id],
-      relationName: "supplierEntity",
+      relationName: "sellerEntity",
     }),
     buyerEntity: one(entities, {
       fields: [purchaseRecords.buyerEntityId],

@@ -1,0 +1,357 @@
+{
+  "id": "d89e363b-cf27-428e-a66d-66b502bdf163",
+  "prevId": "f31327f6-5f91-4dd2-80c1-d23ee5156271",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.Entities": {
+      "name": "Entities",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "gstin": {
+          "name": "gstin",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "place": {
+          "name": "place",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pin": {
+          "name": "pin",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "isBuyer": {
+          "name": "isBuyer",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "isSeller": {
+          "name": "isSeller",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "Entities_gstin_unique": {
+          "name": "Entities_gstin_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "gstin"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.HSNCodes": {
+      "name": "HSNCodes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "code": {
+          "name": "code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "chemical_name": {
+          "name": "chemical_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.PurchaseRecords": {
+      "name": "PurchaseRecords",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "sellerEntityId": {
+          "name": "sellerEntityId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "buyerEntityId": {
+          "name": "buyerEntityId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "hsnCodeId": {
+          "name": "hsnCodeId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "invoiceNo": {
+          "name": "invoiceNo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "invoiceDate": {
+          "name": "invoiceDate",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "state": {
+          "name": "state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ewbNo": {
+          "name": "ewbNo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ewbDate": {
+          "name": "ewbDate",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "assessVal": {
+          "name": "assessVal",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "taxVal": {
+          "name": "taxVal",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "uploadId": {
+          "name": "uploadId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "PurchaseRecords_sellerEntityId_Entities_id_fk": {
+          "name": "PurchaseRecords_sellerEntityId_Entities_id_fk",
+          "tableFrom": "PurchaseRecords",
+          "tableTo": "Entities",
+          "columnsFrom": [
+            "sellerEntityId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "PurchaseRecords_buyerEntityId_Entities_id_fk": {
+          "name": "PurchaseRecords_buyerEntityId_Entities_id_fk",
+          "tableFrom": "PurchaseRecords",
+          "tableTo": "Entities",
+          "columnsFrom": [
+            "buyerEntityId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "PurchaseRecords_hsnCodeId_HSNCodes_id_fk": {
+          "name": "PurchaseRecords_hsnCodeId_HSNCodes_id_fk",
+          "tableFrom": "PurchaseRecords",
+          "tableTo": "HSNCodes",
+          "columnsFrom": [
+            "hsnCodeId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "PurchaseRecords_uploadId_Uploads_id_fk": {
+          "name": "PurchaseRecords_uploadId_Uploads_id_fk",
+          "tableFrom": "PurchaseRecords",
+          "tableTo": "Uploads",
+          "columnsFrom": [
+            "uploadId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.Uploads": {
+      "name": "Uploads",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "fileName": {
+          "name": "fileName",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fileSize": {
+          "name": "fileSize",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fileType": {
+          "name": "fileType",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reverted": {
+          "name": "reverted",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

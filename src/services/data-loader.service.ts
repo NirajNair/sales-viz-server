@@ -124,7 +124,7 @@ export async function loadDataFromExcel(
       // Insert purchase record
       await tx.insert(purchaseRecords).values({
         uploadId,
-        supplierEntityId: seller.id,
+        sellerEntityId: seller.id,
         buyerEntityId: buyer.id,
         hsnCodeId: hsn.id,
         invoiceNo: parsedRow.invoiceNo,
