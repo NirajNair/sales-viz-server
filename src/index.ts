@@ -1,10 +1,17 @@
 import { cors } from "@elysiajs/cors";
 import { Elysia } from "elysia";
 import { randomUUID } from "node:crypto";
+import { checkDatabaseConnection } from "./db";
 import { requestContext } from "./lib/async-context";
 import { config } from "./lib/config";
 import { logger, loggerWithContext } from "./lib/logger";
 import { router } from "./router";
+
+const isDbConnected = await checkDatabaseConnection();
+if (!isDbConnected) {
+  logger.error("Cannot start server: Database connection failed");
+  process.exit(1);
+}
 
 const app = new Elysia()
   .use(
@@ -68,6 +75,28 @@ const app = new Elysia()
     const startTime = (store as { startTime: number }).startTime;
     const durationMs = Date.now() - (startTime || Date.now());
 
+    const dbError = detectDatabaseError(error);
+    if (dbError) {
+      loggerWithContext.error(
+        {
+          err: error,
+          method: request.method,
+          path,
+          query: query && Object.keys(query).length > 0 ? query : undefined,
+          params: params && Object.keys(params).length > 0 ? params : undefined,
+          durationMs,
+          code,
+          httpStatus: 503,
+        },
+        "Database Error",
+      );
+      set.status = 503;
+      return {
+        error: "Database unavailable. Please try again later.",
+        statusCode: 503,
+      };
+    }
+
     // Check if it's an AppError with a statusCode property
     const httpStatusCode =
       error && typeof error === "object" && "statusCode" in error
@@ -117,4 +146,18 @@ function getHttpStatusCode(code: string | number): number {
     default:
       return typeof code === "number" ? code : 500;
   }
+}
+
+function detectDatabaseError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+
+  const err = error as Record<string, unknown>;
+  const cause = err.cause as Record<string, unknown> | undefined;
+  const underlying = cause && typeof cause === "object" ? cause : err;
+
+  const code = (underlying.code ?? err.code) as string | undefined;
+  const dbErrorCodes = ["ECONNREFUSED", "ENOTFOUND", "ETIMEDOUT", "ECONNRESET"];
+  if (code && dbErrorCodes.includes(code)) return true;
+
+  return false;
 }
