@@ -3,6 +3,10 @@ import { handleHealth, handleReady } from "./handlers/health";
 import { handleGetMappings, handleLoadData } from "./handlers/load-data";
 import { handleLogsExport } from "./handlers/logs";
 import {
+  handleGetNexusFilterOptions,
+  handleGetNexusGraph,
+} from "./handlers/nexus";
+import {
   handleExportPurchaseRecords,
   handleGetPurchaseRecordFilterOptions,
   handleGetPurchaseRecords,
@@ -25,4 +29,7 @@ export const router = new Elysia()
   .get("/api/purchase-records/export", handleExportPurchaseRecords)
 
   .get("/api/uploads", handleGetUploads)
-  .post("/api/uploads/:uploadId/revert", handleRevertUpload);
+  .post("/api/uploads/:uploadId/revert", handleRevertUpload)
+
+  .get("/api/nexus/graph", handleGetNexusGraph)
+  .get("/api/nexus/filter-options", handleGetNexusFilterOptions);

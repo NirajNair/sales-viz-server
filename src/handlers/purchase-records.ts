@@ -226,9 +226,7 @@ export function createHandleGetPurchaseRecordFilterOptions(
             code: hsnCodes.code,
           })
           .from(hsnCodes)
-          .where(
-            and(isNotNull(hsnCodes.code), ne(hsnCodes.code, "")),
-          )
+          .where(and(isNotNull(hsnCodes.code), ne(hsnCodes.code, "")))
           .orderBy(asc(hsnCodes.code)),
         deps.db
           .select({
@@ -238,6 +236,10 @@ export function createHandleGetPurchaseRecordFilterOptions(
           .from(hsnCodes)
           .orderBy(asc(hsnCodes.code), asc(hsnCodes.chemicalName)),
       ]);
+
+    deps.loggerWithContext.info(
+      "Purchase record filter options fetched successfully",
+    );
 
     return {
       sellers,
