@@ -53,16 +53,32 @@ function mapNodesFromRecords(
   selectedEntityIds: Set<string>,
 ): Map<string, GraphNode> {
   const nodes = new Map<string, GraphNode>();
+  const entityRoles = new Map<
+    string,
+    { isBuyer: boolean; isSeller: boolean }
+  >();
 
   for (const record of records) {
+    // Track seller role
+    if (!entityRoles.has(record.sellerId)) {
+      entityRoles.set(record.sellerId, { isBuyer: false, isSeller: false });
+    }
+    entityRoles.get(record.sellerId)!.isSeller = true;
+
+    // Track buyer role
+    if (!entityRoles.has(record.buyerId)) {
+      entityRoles.set(record.buyerId, { isBuyer: false, isSeller: false });
+    }
+    entityRoles.get(record.buyerId)!.isBuyer = true;
+
     // Add seller node if not exists
     if (!nodes.has(record.sellerId)) {
       nodes.set(record.sellerId, {
         id: record.sellerId,
         name: record.sellerName,
         gstin: record.sellerGstin,
-        isBuyer: record.sellerIsBuyer,
-        isSeller: record.sellerIsSeller,
+        isBuyer: false, // Will be updated after processing all records
+        isSeller: false,
         isSelected: selectedEntityIds.has(record.sellerId),
       });
     }
@@ -73,10 +89,19 @@ function mapNodesFromRecords(
         id: record.buyerId,
         name: record.buyerName,
         gstin: record.buyerGstin,
-        isBuyer: record.buyerIsBuyer,
-        isSeller: record.buyerIsSeller,
+        isBuyer: false,
+        isSeller: false,
         isSelected: selectedEntityIds.has(record.buyerId),
       });
+    }
+  }
+
+  // Update nodes with computed roles based on filtered records only
+  for (const [entityId, roles] of entityRoles) {
+    const node = nodes.get(entityId);
+    if (node) {
+      node.isBuyer = roles.isBuyer;
+      node.isSeller = roles.isSeller;
     }
   }
 
@@ -101,7 +126,7 @@ function mapLinksFromRecords(records: RawGraphRecord[]): Map<
   >();
 
   for (const record of records) {
-    const linkKey = `${record.sellerId}->${record.buyerId}`;
+    const linkKey = `${record.sellerId}_${record.buyerId}`;
 
     if (!links.has(linkKey)) {
       links.set(linkKey, {
@@ -143,19 +168,15 @@ export function createHandleGetNexusGraph(deps: NexusDependencies) {
       inArray(purchaseRecords.buyerEntityId, validatedQuery.entityIds),
     );
 
-    // Single query to get all records with proper entity details using aliases
+    // First, get all records connected to selected entities (as seller or buyer)
     const dbRecords = await deps.db
       .select({
         sellerId: sellerEntity.id,
         sellerName: sellerEntity.name,
         sellerGstin: sellerEntity.gstin,
-        sellerIsBuyer: sellerEntity.isBuyer,
-        sellerIsSeller: sellerEntity.isSeller,
         buyerId: buyerEntity.id,
         buyerName: buyerEntity.name,
         buyerGstin: buyerEntity.gstin,
-        buyerIsBuyer: buyerEntity.isBuyer,
-        buyerIsSeller: buyerEntity.isSeller,
         hsnCode: hsnCodes.code,
         chemicalName: hsnCodes.chemicalName,
       })

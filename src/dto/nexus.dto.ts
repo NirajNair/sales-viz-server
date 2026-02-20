@@ -1,5 +1,10 @@
 import { z } from "zod";
 import { ValidationError } from "../lib/errors";
+import {
+  normalizeArrayQueryValue,
+  normalizeScalarQueryValue,
+  parseIsoDateOrThrow,
+} from "../lib/utils";
 import { validateWithZod } from "../lib/validation";
 
 export interface GraphNode {
@@ -42,13 +47,9 @@ export interface RawGraphRecord {
   sellerId: string;
   sellerName: string;
   sellerGstin: string;
-  sellerIsBuyer: boolean;
-  sellerIsSeller: boolean;
   buyerId: string;
   buyerName: string;
   buyerGstin: string;
-  buyerIsBuyer: boolean;
-  buyerIsSeller: boolean;
   hsnCode: string;
   chemicalName: string;
 }
@@ -76,51 +77,6 @@ type RawNexusGraphQuery = {
   toDate: string | null;
 };
 
-function normalizeArrayQueryValue(value: unknown): string[] {
-  if (value === undefined || value === null || value === "") {
-    return [];
-  }
-
-  if (Array.isArray(value)) {
-    return value
-      .flatMap((entry) => normalizeArrayQueryValue(entry))
-      .filter((entry) => entry.length > 0);
-  }
-
-  if (typeof value === "string") {
-    return value
-      .split(",")
-      .map((item) => item.trim())
-      .filter((item) => item.length > 0);
-  }
-
-  return [String(value).trim()].filter((item) => item.length > 0);
-}
-
-function normalizeScalarQueryValue(value: unknown): string | null {
-  if (value === undefined || value === null || value === "") {
-    return null;
-  }
-
-  if (Array.isArray(value)) {
-    const first = value.find((entry) => entry !== undefined && entry !== null);
-    return normalizeScalarQueryValue(first);
-  }
-
-  return String(value);
-}
-
-function parseIsoDateOrThrow(value: string | null, field: string): Date | null {
-  if (!value) return null;
-
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    throw ValidationError(`Invalid ${field}. Expected ISO date string`);
-  }
-
-  return parsed;
-}
-
 function normalizeGraphQuery(
   query: Record<string, unknown>,
 ): RawNexusGraphQuery {
@@ -141,19 +97,12 @@ export function validateNexusGraphQuery(
   let fromDate = parseIsoDateOrThrow(validated.fromDate, "fromDate");
   let toDate = parseIsoDateOrThrow(validated.toDate, "toDate");
 
-  // Default to last 6 months if dates not provided
-  if (!fromDate && !toDate) {
-    toDate = new Date();
-    fromDate = new Date();
-    fromDate.setMonth(fromDate.getMonth() - 6);
-  } else if (!fromDate) {
-    fromDate = new Date(0); // Unix epoch
-  } else if (!toDate) {
-    toDate = new Date();
+  if (!fromDate || !toDate) {
+    throw ValidationError("Date range is required");
   }
 
   if (fromDate && toDate && fromDate > toDate) {
-    throw ValidationError("fromDate cannot be greater than toDate");
+    throw ValidationError("Start date cannot be greater than end date");
   }
 
   return {

@@ -2,6 +2,12 @@ import { z } from "zod";
 import { PurchaseRecordSortField } from "../enums/purchase-record-sort-field.enum";
 import { SortOrder } from "../enums/sort-order.enum";
 import { ValidationError } from "../lib/errors";
+import {
+  normalizeArrayQueryValue,
+  normalizeOptionalScalarQueryValue,
+  normalizeScalarQueryValue,
+  parseIsoDateOrThrow,
+} from "../lib/utils";
 import { validateWithZod } from "../lib/validation";
 
 export interface Entity {
@@ -101,64 +107,6 @@ type RawPurchaseRecordsQuery = {
   sortField?: string;
   sortOrder?: string;
 };
-
-function normalizeArrayQueryValue(value: unknown): string[] {
-  if (value === undefined || value === null || value === "") {
-    return [];
-  }
-
-  if (Array.isArray(value)) {
-    return value
-      .flatMap((entry) => normalizeArrayQueryValue(entry))
-      .filter((entry) => entry.length > 0);
-  }
-
-  if (typeof value === "string") {
-    return value
-      .split(",")
-      .map((item) => item.trim())
-      .filter((item) => item.length > 0);
-  }
-
-  return [String(value).trim()].filter((item) => item.length > 0);
-}
-
-function normalizeScalarQueryValue(value: unknown): string | null {
-  if (value === undefined || value === null || value === "") {
-    return null;
-  }
-
-  if (Array.isArray(value)) {
-    const first = value.find((entry) => entry !== undefined && entry !== null);
-    return normalizeScalarQueryValue(first);
-  }
-
-  return String(value);
-}
-
-function normalizeOptionalScalarQueryValue(value: unknown): string | undefined {
-  if (value === undefined || value === null || value === "") {
-    return undefined;
-  }
-
-  if (Array.isArray(value)) {
-    const first = value.find((entry) => entry !== undefined && entry !== null);
-    return normalizeOptionalScalarQueryValue(first);
-  }
-
-  return String(value);
-}
-
-function parseIsoDateOrThrow(value: string | null, field: string): Date | null {
-  if (!value) return null;
-
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    throw ValidationError(`Invalid ${field}. Expected ISO date string`);
-  }
-
-  return parsed;
-}
 
 function normalizeQuery(
   query: Record<string, unknown>,
