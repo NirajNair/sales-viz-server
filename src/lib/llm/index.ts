@@ -12,7 +12,6 @@ export const openaiClient = {
       this.instance = new OpenAI({
         apiKey: "local-llamafile",
         baseURL: `${config.llm.url}/v1`,
-        timeout: DEFAULT_TIMEOUT_MS,
       });
     }
     return this.instance;
@@ -58,22 +57,30 @@ export async function requestCompletion(
   systemPrompt: string,
   userPrompt: string,
 ): Promise<string> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
+
   try {
     const client = openaiClient.get();
-    const response = await client.chat.completions.create({
-      model: "Qwen3-8B-Q4_K_M.gguf",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      temperature: 0.1,
-    });
+    const response = await client.chat.completions.create(
+      {
+        model: "Qwen3-8B-Q4_K_M.gguf",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        temperature: 0.1,
+      },
+      { signal: controller.signal },
+    );
     loggerWithContext.info(
       { response: JSON.stringify(response) },
       "Response from LLM",
     );
+    clearTimeout(timeoutId);
     return extractContent(response);
   } catch (error) {
+    clearTimeout(timeoutId);
     if (error instanceof AppError) {
       throw error;
     }
