@@ -17,13 +17,22 @@ describe("Revert Upload Handler", () => {
   beforeEach(() => {
     mockLogger.error.mockClear();
     mockLogger.info.mockClear();
+
     // Setup mock db with chainable interface
-    // Handler flow: db.select().from().where().limit(1) - where returns chain, limit returns Promise
     const createChain = (limitResult: unknown[] = []) => {
       const chain: any = {
-        select: mock(() => chain),
-        from: mock(() => chain),
-        where: mock(() => chain),
+        select: mock((fields?: any) => {
+          chain._selectFields = fields;
+          return chain;
+        }),
+        from: mock((table: any) => {
+          chain._table = table;
+          return chain;
+        }),
+        where: mock((condition: any) => {
+          chain._where = condition;
+          return chain;
+        }),
         limit: mock(() => Promise.resolve(limitResult)),
         delete: mock(() => ({
           where: mock(() => Promise.resolve({ rowCount: 0 })),
@@ -33,15 +42,40 @@ describe("Revert Upload Handler", () => {
             where: mock(() => Promise.resolve({ rowCount: 1 })),
           })),
         })),
+        leftJoin: mock(() => chain),
+        groupBy: mock(() => Promise.resolve([])),
         returning: mock(() => Promise.resolve([])),
       };
       return chain;
     };
+
     mockDb = createChain();
+
+    // Mock transaction to handle the single-transaction cleanup process
     mockDb.transaction = mock((callback: Function) => {
-      const txChain = createChain();
+      const txChain = {
+        select: mock((fields?: any) => ({
+          from: mock((table: any) => ({
+            leftJoin: mock(() => ({
+              where: mock(() => ({
+                groupBy: mock(() => Promise.resolve([])),
+              })),
+            })),
+            where: mock(() => Promise.resolve([])),
+          })),
+        })),
+        delete: mock(() => ({
+          where: mock(() => Promise.resolve({ rowCount: 3 })),
+        })),
+        update: mock(() => ({
+          set: mock(() => ({
+            where: mock(() => Promise.resolve({ rowCount: 1 })),
+          })),
+        })),
+      };
       return callback(txChain);
     });
+
     handleRevertUpload = createHandleRevertUpload({
       db: mockDb,
       loggerWithContext: mockLogger,
@@ -66,9 +100,28 @@ describe("Revert Upload Handler", () => {
           },
         ]),
       );
-      // Mock transaction - returns [purchaseRecordsResult] from Promise.all
-      mockDb.transaction = mock(() => {
-        return Promise.resolve([{ rowCount: 3 }]);
+      // Mock transaction - now returns single count value
+      mockDb.transaction = mock((callback: Function) => {
+        const txChain = {
+          select: mock((fields?: any) => ({
+            from: mock((table: any) => ({
+              leftJoin: mock(() => ({
+                where: mock(() => ({
+                  groupBy: mock(() => Promise.resolve([])),
+                })),
+              })),
+            })),
+          })),
+          delete: mock(() => ({
+            where: mock(() => Promise.resolve({ rowCount: 3 })),
+          })),
+          update: mock(() => ({
+            set: mock(() => ({
+              where: mock(() => Promise.resolve({ rowCount: 1 })),
+            })),
+          })),
+        };
+        return callback(txChain);
       });
       const ctx = createMockContext(uploadId);
       const result = await handleRevertUpload(ctx);
@@ -88,9 +141,28 @@ describe("Revert Upload Handler", () => {
           },
         ]),
       );
-      // Mock transaction - returns [purchaseRecordsResult] from Promise.all
-      mockDb.transaction = mock(() => {
-        return Promise.resolve([{ rowCount: 0 }]);
+      // Mock transaction - now returns single count value
+      mockDb.transaction = mock((callback: Function) => {
+        const txChain = {
+          select: mock((fields?: any) => ({
+            from: mock((table: any) => ({
+              leftJoin: mock(() => ({
+                where: mock(() => ({
+                  groupBy: mock(() => Promise.resolve([])),
+                })),
+              })),
+            })),
+          })),
+          delete: mock(() => ({
+            where: mock(() => Promise.resolve({ rowCount: 0 })),
+          })),
+          update: mock(() => ({
+            set: mock(() => ({
+              where: mock(() => Promise.resolve({ rowCount: 1 })),
+            })),
+          })),
+        };
+        return callback(txChain);
       });
       const ctx = createMockContext(uploadId);
       const result = await handleRevertUpload(ctx);
@@ -186,8 +258,27 @@ describe("Revert Upload Handler", () => {
           },
         ]),
       );
-      mockDb.transaction = mock(() => {
-        return Promise.resolve([{ rowCount: 1 }]);
+      mockDb.transaction = mock((callback: Function) => {
+        const txChain = {
+          select: mock((fields?: any) => ({
+            from: mock((table: any) => ({
+              leftJoin: mock(() => ({
+                where: mock(() => ({
+                  groupBy: mock(() => Promise.resolve([])),
+                })),
+              })),
+            })),
+          })),
+          delete: mock(() => ({
+            where: mock(() => Promise.resolve({ rowCount: 1 })),
+          })),
+          update: mock(() => ({
+            set: mock(() => ({
+              where: mock(() => Promise.resolve({ rowCount: 1 })),
+            })),
+          })),
+        };
+        return callback(txChain);
       });
       const ctx = createMockContext(uploadId);
       const result = await handleRevertUpload(ctx);
@@ -205,8 +296,27 @@ describe("Revert Upload Handler", () => {
           },
         ]),
       );
-      mockDb.transaction = mock(() => {
-        return Promise.resolve([{ rowCount: 1 }]);
+      mockDb.transaction = mock((callback: Function) => {
+        const txChain = {
+          select: mock((fields?: any) => ({
+            from: mock((table: any) => ({
+              leftJoin: mock(() => ({
+                where: mock(() => ({
+                  groupBy: mock(() => Promise.resolve([])),
+                })),
+              })),
+            })),
+          })),
+          delete: mock(() => ({
+            where: mock(() => Promise.resolve({ rowCount: 1 })),
+          })),
+          update: mock(() => ({
+            set: mock(() => ({
+              where: mock(() => Promise.resolve({ rowCount: 1 })),
+            })),
+          })),
+        };
+        return callback(txChain);
       });
       const ctx = createMockContext(uploadId);
       await handleRevertUpload(ctx);

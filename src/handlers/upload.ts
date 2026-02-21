@@ -1,7 +1,8 @@
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, inArray, isNull, or } from "drizzle-orm";
 import type { Context } from "elysia";
+import { QueryResult } from "pg";
 import { db } from "../db";
-import { purchaseRecords, uploads } from "../db/schema";
+import { entities, hsnCodes, purchaseRecords, uploads } from "../db/schema";
 import type { GetUploadsResponseDto } from "../dto/get-uploads.dto";
 import type { RevertUploadResponseDto } from "../dto/revert-upload.dto";
 import { validateRevertUploadParams } from "../dto/revert-upload.dto";
@@ -36,8 +37,13 @@ export function createHandleRevertUpload(deps: UploadDependencies) {
       throw ValidationError("Upload has already been reverted");
     }
 
-    const [purchaseRecordsResult] = await deps.db.transaction(async (tx) => {
-      return Promise.all([
+    const [
+      purchaseRecordsDeletedCount,
+      entitiesDeletedCount,
+      hsnCodesDeletedCount,
+    ] = await deps.db.transaction(async (tx) => {
+      // Delete purchase records and mark upload as reverted
+      const [deletePurchaseRecordsResult, _] = await Promise.all([
         tx
           .delete(purchaseRecords)
           .where(eq(purchaseRecords.uploadId, uploadId)),
@@ -46,19 +52,65 @@ export function createHandleRevertUpload(deps: UploadDependencies) {
           .set({ reverted: true })
           .where(eq(uploads.id, uploadId)),
       ]);
-    });
 
-    const purchaseRecordsCount = purchaseRecordsResult.rowCount ?? 0;
+      const [orphanEntities, orphanHsnCodes] = await Promise.all([
+        tx
+          .select({ id: entities.id })
+          .from(entities)
+          .leftJoin(
+            purchaseRecords,
+            or(
+              eq(entities.id, purchaseRecords.sellerEntityId),
+              eq(entities.id, purchaseRecords.buyerEntityId),
+            ),
+          )
+          .where(isNull(purchaseRecords.id))
+          .groupBy(entities.id),
+        tx
+          .select({ id: hsnCodes.id })
+          .from(hsnCodes)
+          .leftJoin(purchaseRecords, eq(hsnCodes.id, purchaseRecords.hsnCodeId))
+          .where(isNull(purchaseRecords.id)),
+      ]);
+
+      let deleteEntitiesResult: QueryResult | null = null;
+      let deleteHsnCodesResult: QueryResult | null = null;
+
+      if (orphanEntities.length > 0) {
+        deleteEntitiesResult = await tx.delete(entities).where(
+          inArray(
+            entities.id,
+            orphanEntities.map((e) => e.id),
+          ),
+        );
+      }
+      if (orphanHsnCodes.length > 0) {
+        deleteHsnCodesResult = await tx.delete(hsnCodes).where(
+          inArray(
+            hsnCodes.id,
+            orphanHsnCodes.map((h) => h.id),
+          ),
+        );
+      }
+
+      return [
+        deletePurchaseRecordsResult.rowCount ?? 0,
+        deleteEntitiesResult?.rowCount ?? 0,
+        deleteHsnCodesResult?.rowCount ?? 0,
+      ];
+    });
 
     deps.loggerWithContext.info(
       {
         uploadId,
-        purchaseRecordsDeletedCount: purchaseRecordsCount,
+        purchaseRecordsDeletedCount,
+        entitiesDeletedCount,
+        hsnCodesDeletedCount,
       },
       "Upload reverted successfully",
     );
 
-    return { deletedRecordsCount: purchaseRecordsCount };
+    return { deletedRecordsCount: purchaseRecordsDeletedCount };
   };
 }
 
