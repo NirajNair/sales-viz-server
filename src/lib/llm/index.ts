@@ -70,6 +70,7 @@ export async function requestCompletion(
           { role: "user", content: userPrompt },
         ],
         temperature: 0.1,
+        response_format: { type: "json_object" },
       },
       { signal: controller.signal },
     );

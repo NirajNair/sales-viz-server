@@ -21,7 +21,14 @@ const BATCH_RESPONSE_FORMAT = `Your response must be valid JSON in this format:
       ]
     }
   ]
-}`;
+}
+
+IMPORTANT:
+- You MUST return a JSON object with a "columns" key at the root level. Do NOT return just an array.
+- Do NOT include "sample_value" in your response - it is only for your reference, not for output.
+- Always include the "parts" array in each column (can be empty array []).
+WRONG:  [ { "header": "...", ... } ]
+CORRECT: { "columns": [ { "header": "...", ... } ] }`;
 
 const DB_COLUMNS_LIST = `Available Database Columns:
 - purchase_records.invoice_no

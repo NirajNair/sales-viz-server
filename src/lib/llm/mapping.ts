@@ -29,7 +29,8 @@ function buildBatchUserPrompt(samples: ColumnSample[]) {
     2,
   );
 
-  return `Input Columns: ${columnsJson}`;
+  return `Input Columns (reference only - do NOT include sample_value in output):
+${columnsJson}`;
 }
 
 export async function getMappingSuggestion(
