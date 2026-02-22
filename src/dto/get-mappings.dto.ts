@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { ParsedColumn } from "../lib/excel";
-import type { LlmBatchSuggestion } from "../lib/llm";
+import type { LlmBatchSuggestion } from "../lib/llm/types";
 import { validateWithZod } from "../lib/validation";
 
 export const GetMappingsRequestSchema = z.object({
@@ -64,11 +64,13 @@ export function buildGetMappingsResponse(
     suggestion: {
       shouldSplit: col.should_split,
       delimiter: col.delimiter,
-      mapTo: col.map_to,
-      parts: col.parts.map((part) => ({
-        index: part.index,
-        mapTo: part.map_to,
-      })),
+      mapTo: col.should_split ? null : col.map_to,
+      parts: col.parts.map(
+        (part: { index: number; map_to: string | null }) => ({
+          index: part.index,
+          mapTo: part.map_to,
+        }),
+      ),
     },
   }));
 
