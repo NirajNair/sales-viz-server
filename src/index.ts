@@ -1,8 +1,9 @@
 import { cors } from "@elysiajs/cors";
-import { Elysia } from "elysia";
+import { Context, Elysia } from "elysia";
 import { randomUUID } from "node:crypto";
 import { checkDatabaseConnection } from "./db";
 import { requestContext } from "./lib/async-context";
+import { auth } from "./lib/auth";
 import { config } from "./lib/config";
 import { logger, loggerWithContext } from "./lib/logger";
 import { router } from "./router";
@@ -12,6 +13,16 @@ if (!isDbConnected) {
   logger.error("Cannot start server: Database connection failed");
   process.exit(1);
 }
+
+const betterAuthView = (context: Context) => {
+  const BETTER_AUTH_ACCEPT_METHODS = ["POST", "GET"];
+  // validate request method
+  if (BETTER_AUTH_ACCEPT_METHODS.includes(context.request.method)) {
+    return auth.handler(context.request);
+  } else {
+    return context.status(405, "Method Not Allowed");
+  }
+};
 
 const app = new Elysia()
   .use(
@@ -122,6 +133,7 @@ const app = new Elysia()
       statusCode: httpStatusCode,
     };
   })
+  .all("/api/auth/*", betterAuthView)
   .use(router)
   .listen({ port: config.server.port }, ({ hostname, port }) => {
     logger.info(

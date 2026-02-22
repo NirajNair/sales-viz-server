@@ -12,6 +12,9 @@ export class AppError extends Error {
 export const ValidationError = (message: string) =>
   new AppError(message, 400, "VALIDATION_ERROR");
 
+export const AuthenticationError = (message: string) =>
+  new AppError(message, 401, "AUTHENTICATION_ERROR");
+
 export const InternalServerError = (message: string) =>
   new AppError(message, 500, "INTERNAL_SERVER_ERROR");
 

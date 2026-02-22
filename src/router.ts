@@ -12,10 +12,24 @@ import {
   handleGetPurchaseRecords,
 } from "./handlers/purchase-records";
 import { handleGetUploads, handleRevertUpload } from "./handlers/upload";
+import { requireAuth } from "./lib/auth-guard";
 
 export const router = new Elysia()
   .get("/health", handleHealth)
   .get("/ready", handleReady)
+  .derive({ as: "scoped" }, async ({ request, path }) => {
+    const publicPaths = ["/health", "/ready", "/api/auth"];
+    const isPublicPath = publicPaths.some((publicPath) =>
+      path.startsWith(publicPath),
+    );
+
+    if (isPublicPath) {
+      return { session: null };
+    }
+
+    const session = await requireAuth(request);
+    return { session };
+  })
   .post("/api/logs/export", handleLogsExport)
 
   .post("/api/load-data/get-mappings", handleGetMappings)

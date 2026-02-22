@@ -19,6 +19,10 @@ interface Config {
   server: {
     port: number;
   };
+  betterAuth: {
+    secret: string;
+    url: string;
+  };
   logs: {
     dir: string;
     level: string;
@@ -84,6 +88,18 @@ function initConfig(): Config {
     }
     const serverPort = Number.parseInt(serverPortStr, 10);
 
+    const betterAuthSecret = process.env.BETTER_AUTH_SECRET;
+    if (!betterAuthSecret || betterAuthSecret.trim() === "") {
+      throw new ConfigurationError(
+        "BETTER_AUTH_SECRET is required but not set",
+      );
+    }
+
+    const betterAuthUrl = process.env.BETTER_AUTH_URL;
+    if (!betterAuthUrl || betterAuthUrl.trim() === "") {
+      throw new ConfigurationError("BETTER_AUTH_URL is required but not set");
+    }
+
     const logDir =
       process.env.LOG_DIR && process.env.LOG_DIR.trim() !== ""
         ? process.env.LOG_DIR
@@ -110,6 +126,10 @@ function initConfig(): Config {
       },
       server: {
         port: serverPort,
+      },
+      betterAuth: {
+        secret: betterAuthSecret,
+        url: betterAuthUrl,
       },
       logs: {
         dir: logDir,
