@@ -1,5 +1,5 @@
 {
-  "name": "purchase-viz-server",
+  "name": "sales-viz-server",
   "version": "1.0.50",
   "scripts": {
     "test": "bun test",

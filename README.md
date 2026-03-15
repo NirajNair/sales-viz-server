@@ -1,4 +1,4 @@
-# purchase-viz-server
+# sales-viz-server
 
 Elysia server built to support purchase visualization. It processes excel sheets of purchase data and stores it in DB for future visualization queries.
 

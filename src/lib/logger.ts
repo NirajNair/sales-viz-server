@@ -43,7 +43,7 @@ if (isTest) {
 export const logger = pino(
   {
     level: config.logs.level || (isDevelopment ? "debug" : "info"),
-    name: "purchase-viz-server",
+    name: "sales-viz-server",
     formatters: {
       level: (label) => ({ level: label }),
     },
