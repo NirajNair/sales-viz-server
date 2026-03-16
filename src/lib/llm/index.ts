@@ -3,7 +3,7 @@ import { config } from "../config";
 import { AppError, BadGatewayError, ServiceUnavailableError } from "../errors";
 import { loggerWithContext } from "../logger";
 
-const DEFAULT_TIMEOUT_MS = 60000;
+const DEFAULT_TIMEOUT_MS = 5 * 60 * 1000;
 
 export const openaiClient = {
   instance: null as OpenAI | null,
